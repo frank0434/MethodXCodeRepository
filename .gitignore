@@ -1,0 +1,26 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+#less desired files
+*.html
+*.db-shm
+*.db-wal
+*.bak
+*.xlsx
+*.db
+*.sqlite3
+temp*
+test*
+*.txt
+*.csv
+*.pdf
+*.png
+03processed-data/*/*.apsimx
+#notebook checkout points
+.ipynb_check*
+#dir
+Data/
+.drake/
+.drake_history/
+*CloseSimDBs.ipynb
