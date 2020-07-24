@@ -1,0 +1,5 @@
+library(data.table)
+library(httr)
+library(readxl)
+library(magrittr)
+library(ggplot2)
