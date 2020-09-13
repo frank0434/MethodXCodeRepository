@@ -69,7 +69,7 @@ con = dbConnect(PostgreSQL(),
                 password = "vVsYDCzw7PD4Phb1" )
 
 dbListTables(con)
-dbWriteTable(con, sheet, df)
+dbWriteTable(con, sheet, df, overwrite = TRUE)
 
 ```
 
