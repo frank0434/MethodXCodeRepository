@@ -18,9 +18,12 @@ df = read_excel(tf, sheet, skip = 9,.name_repair = "universal") %>%
 
 
 # source the cliflo PET ---------------------------------------------------
-options(RCurlOptions = list(proxy = 'http://proxy.pfr.co.nz:8080'))
-cf_curl_opts(.opts = list(proxy = "https://proxy.pfr.co.nz:8080", ssl.verifypeer = FALSE))
-
+devtools::install_github("ropensci/clifro", ref = "iss05")
+options(RCurlOptions = list(proxy = 'http://proxy.pfr.co.nz:8080'),
+                          proxyusername  = Sys.getenv("USERNAME"), 
+                          proxypassword  = Sys.getenv("PASSWORD"),
+                          ssl.verifypeer = FALSE)
+cf_user()
 ## Credentials 
 me = cf_user(Sys.getenv("clifro_usr"),
              Sys.getenv("clifro_pass"))
@@ -35,7 +38,7 @@ my.dts
 
 ## Station 
 agentno <- 17603L
-my.station <- cf_station(17603)
+my.station <- cf_station(agentno)
 
 ## Retrieve data
 cf.datalist <- cf_query(user = me,
