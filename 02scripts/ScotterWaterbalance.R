@@ -21,8 +21,7 @@
 
 
 ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs){
-  df_WaterBalance_outputs <- weatherdata %>% 
-  select(Date)
+  df_WaterBalance_outputs <- weatherdata 
   
   df_WaterBalance_outputs$Ws <- Ws0 
   df_WaterBalance_outputs$Es <- 0 
