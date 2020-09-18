@@ -21,6 +21,8 @@
 
 
 ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs){
+  cols <- colnames(weatherdata)
+  stopifnot("Precipitation" %in% cols)
   df_WaterBalance_outputs <- weatherdata 
   
   df_WaterBalance_outputs$Ws <- Ws0 
