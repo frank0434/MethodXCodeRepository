@@ -15,7 +15,7 @@ sheet = "SoilWaterMainData"
 GET(url, authenticate(Sys.getenv("USERNAME"), Sys.getenv("PASSWORD"),
                       type = "ntlm"), 
     write_disk(tf <- tempfile(fileext = ".xlsx"), overwrite = TRUE)) 
-list.files(tf)
+file.exists(tf)
 df <-  read_excel(tf, sheet, skip = 9,.name_repair = "universal") %>% 
   as.data.table()
 excel_sheets(tf)

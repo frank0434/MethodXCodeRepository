@@ -60,7 +60,11 @@ update_profile <- update_profile[, (paste0("deficit", deficit)) := lapply(.SD, f
 # Soil water balance
 source("02scripts/ScotterWaterbalance.R")
 ## Joining PET and precipitation
-WaterBalance <- merge(PET, update_profile[,.(Date = as.Date(Date), Rainfall, Irrigation)], by = 'Date', by.x = TRUE)
+WaterBalance <- merge(PET, update_profile[,.(Date = as.Date(Date), Rainfall, Irrigation)], by = 'Date', all.x  = TRUE)
+# Replace NA with 0 to do calculation
+WaterBalance[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
+                    Irrigation = ifelse(is.na(Irrigation), 0, Irrigation))
+             ][,Precipitation:=Rainfall+Irrigation]
 
 ## Define inputs 
 
@@ -73,7 +77,6 @@ AWHCs <- 31
 # 4. value for AWHC (available water holding capacity in mm)
 # 5. value for AWHCs (available water holding capacity for the top soil in mm)
 
-WaterBalance[, Precipitation:=Rainfall+Irrigation]
 update_waterbalance <- ScotterWaterbalance(WaterBalance, Wt0, Ws0 = Ws0, AWHC = AWHC, AWHCs = AWHCs)
 update_waterbalance <- update_waterbalance[, Date:=as.POSIXct(Date, tz = "NZ")] 
 
@@ -89,7 +92,7 @@ update_waterbalance[, ':='(CUMPET=cumsum(PET),
                            CUMWATERINPUT= cumsum(Precipitation),
                            CUMDrainage = cumsum(Drainage))]%>% 
   ggplot(aes(Date)) +
-  geom_point(aes(y = CUMPET)) +
-  geom_line(aes(y= CUMWATERINPUT)) +
+  geom_line(aes(y = CUMPET)) +
+  geom_line(aes(y= CUMWATERINPUT), color = "blue") +
   geom_line(aes(y = CUMDrainage), color = "red")+
   theme_classic()
