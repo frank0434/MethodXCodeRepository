@@ -29,26 +29,26 @@ df[!is.na(Crop)]
 
 ## Manual download
 
-PET <- fread(here::here("01raw-data/PET.genform1_proc"), skip = 8)
+# PET <- fread(here::here("01raw-data/PET.genform1_proc"), skip = 8)
 
 ## Fix the date
-PET <- PET[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d,%H", tz = "NZ")
-           ][, .(Date, PET = `Amount(mm)`)]
+# PET <- PET[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d,%H", tz = "NZ")
+#            ][, .(Date, PET = `Amount(mm)`)]
 
 # devtools::install_github("ropensci/clifro", ref = "iss05")
 
 cf_user()
 ## Credentials 
-# me = cf_user(Sys.getenv("clifro_usr"),
-#              Sys.getenv("clifro_pass"))
+me = cf_user(Sys.getenv("clifro_usr"),
+             Sys.getenv("clifro_pass"))
 # 
 # ## Datatypes 
 # 
-# my.dts = cf_datatype(select_1 =     c(9), 
-#                      select_2 =     c(1), 
-#                      check_box = list(4), 
-#                      combo_box =    c(NA))
-# my.dts
+my.dts = cf_datatype(select_1 =     c(9),
+                     select_2 =     c(1),
+                     check_box = list(4),
+                     combo_box =    c(NA))
+my.dts
 # 
 # ## Station 
 # agentno <- 17603L
