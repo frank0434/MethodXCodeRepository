@@ -59,3 +59,27 @@ ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs){
  }
 
 
+
+#' lagfun
+#' @description use with lappy to calculate the lag 1 difference
+#' @param x 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+lagfun <- function(x){
+  # Split the vector into different groups 
+  vv <- split(x, cumsum(!is.na(x)))
+  # Replace NA with the first non NA value
+  vv <- sapply(vv, function(x) {
+    sapply(x,function(xx){
+      ifelse(is.na(xx), x[1], xx)
+    })
+  })
+  # Unlist the vector
+  vv <- unlist(vv)
+  # Calculate the lag one difference 
+  x <- c(0, diff(na.omit(vv), lag = 1))
+}
