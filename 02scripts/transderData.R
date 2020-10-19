@@ -2,7 +2,7 @@
 # Aim:
 # Manipulate data 
 source("02scripts/sourceData.R")
-
+source("02scripts/ScotterWaterbalance.R")
 # required cols 
 cols <- grep("^\\w", colnames(df), value = TRUE)
 
@@ -57,33 +57,46 @@ irrigation <- melt.data.table(df_irrigation,
                               variable.factor = FALSE, variable.name = "Treatment" )
 irrigation_sum <- irrigation[, .(Irrigation = sum(Irrigation, na.rm = TRUE)), 
                              by = .(Crop, Date)]
+irrigation.1 <- df_irrigation[,.(Crop, Date, Irrigation.1)]
+irrigation.2 <- df_irrigation[,.(Crop, Date, Irrigation.2)]
 
 update_profile <- merge.data.table(update_profile, irrigation_sum, 
                                    by = c("Crop", "Date"), all.x = TRUE, all.y = TRUE)
-update_60cm <- merge.data.table(update_60cm, irrigation_sum, 
+
+update_60cm_irr1 <- merge.data.table(update_60cm, irrigation.1, 
                                 by = c("Crop", "Date"), all.x = TRUE, all.y = TRUE)
+update_60cm_irr2 <- merge.data.table(update_60cm, irrigation.2, 
+                                     by = c("Crop", "Date"), all.x = TRUE, all.y = TRUE)
 # Soil water deficit
 
 deficit <- grep("^Nitrogen.+", colnames(update_profile), value = TRUE)
 update_profile <- update_profile[, (paste0("deficit", deficit)) := lapply(.SD, lagfun),
                                  by = .(Crop), .SDcols = deficit][]
-update_60cm <- update_60cm[, (paste0("deficit", deficit)) := lapply(.SD, lagfun),
-                           by = .(Crop), .SDcols = deficit][]
+
+update_60cm_irr1 <- update_60cm_irr1[, (paste0("deficit", deficit)) := lapply(.SD, lagfun),
+                                    by = .(Crop), .SDcols = deficit][]
+update_60cm_irr2 <- update_60cm_irr2[, (paste0("deficit", deficit)) := lapply(.SD, lagfun),
+                                    by = .(Crop), .SDcols = deficit][]
 
 
 # Soil water balance
-source("02scripts/ScotterWaterbalance.R")
+
 ## Joining PET and precipitation
 WaterBalance <- merge(PET, update_profile[,.(Date = as.Date(Date), Rainfall, Irrigation)], by = 'Date', all.x  = TRUE)
-WaterBalance_60cm <- merge(PET, update_60cm[,.(Date = as.Date(Date), Rainfall, Irrigation)], by = 'Date', all.x  = TRUE)
-
+# WaterBalance_60cm <- merge(PET, update_60cm[,.(Date = as.Date(Date), Rainfall, Irrigation)], by = 'Date', all.x  = TRUE)
+WaterBalance_60cm_irr1 <- merge(PET, update_60cm_irr1[,.(Date = as.Date(Date), Rainfall, Irrigation.1)], by = 'Date', all.x  = TRUE)
+WaterBalance_60cm_irr2 <- merge(PET, update_60cm_irr2[,.(Date = as.Date(Date), Rainfall, Irrigation.2)], by = 'Date', all.x  = TRUE)
 # Replace NA with 0 to do calculation
 WaterBalance[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
                     Irrigation = ifelse(is.na(Irrigation), 0, Irrigation))
              ][,Precipitation:=Rainfall+Irrigation]
-WaterBalance_60cm[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
-                         Irrigation = ifelse(is.na(Irrigation), 0, Irrigation))
-                  ][,Precipitation:=Rainfall+Irrigation]
+
+WaterBalance_60cm_irr1[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
+                         Irrigation.1= ifelse(is.na(Irrigation.1), 0, Irrigation.1))
+                       ][,Precipitation:=Rainfall+Irrigation.1]
+WaterBalance_60cm_irr2[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
+                              Irrigation.2= ifelse(is.na(Irrigation.2), 0, Irrigation.2))
+][,Precipitation:=Rainfall+Irrigation.2]
 
 ## Define inputs 
 
@@ -100,9 +113,11 @@ AWHCs <- 31
 
 update_waterbalance <- ScotterWaterbalance(WaterBalance, Wt0, Ws0 = Ws0, AWHC = AWHC, AWHCs = AWHCs)
 update_waterbalance <- update_waterbalance[, Date:=as.POSIXct(Date, tz = "NZ")] 
-update_waterbalance_60cm <- ScotterWaterbalance(WaterBalance_60cm, Wt0, Ws0 = Ws0, AWHC = AWHC_60cm, AWHCs = AWHCs)
-update_waterbalance_60cm <- update_waterbalance_60cm[, Date:=as.POSIXct(Date, tz = "NZ")] 
+update_waterbalance_60cmirr1 <- ScotterWaterbalance(WaterBalance_60cm_irr1, Wt0, Ws0 = Ws0, AWHC = AWHC_60cm, AWHCs = AWHCs)
+update_waterbalance_60cmirr1 <- update_waterbalance_60cmirr1[, Date:=as.POSIXct(Date, tz = "NZ")] 
 
+update_waterbalance_60cmirr2 <- ScotterWaterbalance(WaterBalance_60cm_irr2, Wt0, Ws0 = Ws0, AWHC = AWHC_60cm, AWHCs = AWHCs)
+update_waterbalance_60cmirr2 <- update_waterbalance_60cmirr2[, Date:=as.POSIXct(Date, tz = "NZ")] 
 
 update_waterbalance %>% 
   ggplot(aes(Date)) +
@@ -110,7 +125,7 @@ update_waterbalance %>%
   geom_line(aes(y= Wt)) +
   theme_classic()
 
-update_waterbalance_60cm %>% 
+update_waterbalance_60cmirr1 %>% 
   ggplot(aes(Date)) +
   geom_point(aes(y = Wt)) +
   geom_line(aes(y= Wt)) +
@@ -124,7 +139,7 @@ update_waterbalance[, ':='(CUMPET=cumsum(PET),
   geom_line(aes(y= CUMWATERINPUT), color = "blue") +
   geom_line(aes(y = CUMDrainage), color = "red")+
   theme_classic()
-update_waterbalance_60cm[, ':='(CUMPET=cumsum(PET),
+update_waterbalance_60cmirr1[, ':='(CUMPET=cumsum(PET),
                            CUMWATERINPUT= cumsum(Precipitation),
                            CUMDrainage = cumsum(Drainage))]%>% 
   ggplot(aes(Date)) +
