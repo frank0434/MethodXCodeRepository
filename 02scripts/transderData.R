@@ -12,138 +12,192 @@ DT <- df[!is.na(Crop), ..cols]
 # Constant
 colnames <- colnames(DT)
 value_var <- grep("VWC.+", colnames, value = TRUE)
-thickness <- 20L
-id_var <- c("Crop", "Date", "Plot_No","Irrigation...8", "N_rate", "Rainfall")
+# Cautious!!!!! SW is in percentage
+thickness <- 2
+id_var <- c("Crop", "Date", "Field_Plot_No", "Plot_No","Irrigation...8", "N_rate")
+
+# Missing or erroneous values will be removed by join the metadata which has the
+# information about bad values
+metadata <- melt.data.table(df_error, measure = patterns("VWC_*"))
+NAcells <- metadata[, Comments:=NULL][value == 1]
 
 DT_long <- melt(DT, 
                 id.vars = id_var, measure.vars = value_var, 
-                variable.factor = FALSE)
+                variable.factor = FALSE)[, value := as.numeric(value)]
+DTwithmeta <- merge.data.table(DT_long, NAcells, 
+                               by.x = c("Date", "Field_Plot_No", "variable"),
+                               by.y = c("Date", "Plot", "variable"), 
+                               all.x = TRUE, suffixes = c("", ".y"))
+DTwithmeta <- DTwithmeta[is.na(value.y)
+                         ][, value.y := NULL
+                           ]
+# value is doubled to get the mm unit, `thickness` holds the converter. 
+DT_summariesed <- DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = TRUE)), 
+                             by = .(Crop, Date, variable, Irrigation...8, N_rate)]
 
-DT_summariesed <- DT_long[, .(SW = mean(as.numeric(value), na.rm = TRUE)), 
-                          by = c(id_var,"variable")
-                          ]
-# Cautious!!!!! SW is in percentage
+# Transfer layer information to integer layers
+layers_name <- unique(DT_summariesed$variable)
+layers_no <- c(1, 6, 7, 8, 2, 3, 4,5)
+names(layers_no) <- layers_name
+DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 
-# 1.8 m profile
-DT_summariesed[order(Date,Plot_No, N_rate, Irrigation...8, decreasing = TRUE)]
+# Simple SWD --------------------------------------------------------------
+## Simple SWD uses a user-defined PAWC (usually the maximum value over a series measurement)
+## SWD is calculated by subtracting the PAWC by the actual measurement
+
+DT_profile_simple_60cm <- SWD_depth(DT_summariesed, maxdepth = 3)
+
+update_simpleSWD.irr1 <- dcast.data.table(DT_profile_simple_60cm[Irrigation == 1],
+                                          Crop + Date ~ N_rate, value.var = "SWD")
+update_simpleSWD.irr2 <- dcast.data.table(DT_profile_simple_60cm[Irrigation == 2],
+                                          Crop + Date ~ N_rate, value.var = "SWD")
+
+DT_profile_simple <- SWD_depth(DT_summariesed)
+
+profile_simpleSWD.irr1 <- dcast.data.table(DT_profile_simple[Irrigation == 1],
+                                          Crop + Date ~ N_rate, value.var = "SWD")
+profile_simpleSWD.irr2 <- dcast.data.table(DT_profile_simple[Irrigation == 2],
+                                          Crop + Date ~ N_rate, value.var = "SWD")
 
 
-DT_profile <- DT_summariesed[, .(Profile = sum(SW, na.rm = TRUE)), by = id_var]
-
-update_profile <- DT_profile[,.(Profile_mean = mean(Profile)), 
-                             by = .(Crop, Date, N_rate, Irrigation...8,  Rainfall)
-                             ][, ':='(Treatment = paste0("Nitrogen_", N_rate, ":", 
-                                                         "Irrigation_", Irrigation...8),
-                                      Date = as.POSIXct(Date, tz = "NZ"))]
-# 0.6 m
-DT_60cm <- copy(DT_summariesed)[variable %in% c("VWC_0.20", "VWC_20.40", "VWC_40.60")
-                                ][, .(Profile = sum(SW, na.rm = TRUE)), 
-                                  by = id_var
-                                  ][,.(Profile_mean = mean(Profile)), 
-                                    by = .(Crop, Date, N_rate, Irrigation...8,  Rainfall)
-                                    ][, ':='(Treatment = paste0("Nitrogen_", N_rate, ":", 
-                                                                "Irrigation_", Irrigation...8),
-                                             Date = as.POSIXct(Date, tz = "NZ"))]
-
-# Transfer to wide to show in grafana
-update_profile <- dcast(update_profile, 
-                        Crop + Date + Rainfall  ~ Treatment, value.var = "Profile_mean")
-update_60cm <- dcast(DT_60cm, 
-                     Crop + Date + Rainfall  ~ Treatment, value.var = "Profile_mean")
-# Join the irrigation 
-
+# WATER BALANCE -----------------------------------------------------------
+# irrigation  -------------------------------------------------------------
 irrigation <- melt.data.table(df_irrigation, 
                               id.vars = c("Crop", "Date"), value.name = "Irrigation",
                               variable.factor = FALSE, variable.name = "Treatment" )
-irrigation_sum <- irrigation[, .(Irrigation = sum(Irrigation, na.rm = TRUE)), 
-                             by = .(Crop, Date)]
-irrigation.1 <- df_irrigation[,.(Crop, Date, Irrigation.1)]
-irrigation.2 <- df_irrigation[,.(Crop, Date, Irrigation.2)]
+# # 1.8 m profile ---------------------------------------------------------
+# DT_summariesed[order(Date,Plot_No, N_rate, Irrigation...8, decreasing = TRUE)]
 
-update_profile <- merge.data.table(update_profile, irrigation_sum, 
-                                   by = c("Crop", "Date"), all.x = TRUE, all.y = TRUE)
-
-update_60cm_irr1 <- merge.data.table(update_60cm, irrigation.1, 
-                                by = c("Crop", "Date"), all.x = TRUE, all.y = TRUE)
-update_60cm_irr2 <- merge.data.table(update_60cm, irrigation.2, 
-                                     by = c("Crop", "Date"), all.x = TRUE, all.y = TRUE)
-# Soil water deficit
-
-deficit <- grep("^Nitrogen.+", colnames(update_profile), value = TRUE)
-update_profile <- update_profile[, (paste0("deficit", deficit)) := lapply(.SD, lagfun),
-                                 by = .(Crop), .SDcols = deficit][]
-
-update_60cm_irr1 <- update_60cm_irr1[, (paste0("deficit", deficit)) := lapply(.SD, lagfun),
-                                    by = .(Crop), .SDcols = deficit][]
-update_60cm_irr2 <- update_60cm_irr2[, (paste0("deficit", deficit)) := lapply(.SD, lagfun),
-                                    by = .(Crop), .SDcols = deficit][]
+update_irr1 <- dcast.data.table(DT_profile_simple[Irrigation == 1],
+                                Crop + Date ~ N_rate,
+                                value.var = "Profile")
+update_irr2 <- dcast.data.table(DT_profile_simple[Irrigation == 2],
+                                Crop + Date ~ N_rate,
+                                value.var = "Profile")
 
 
-# Soil water balance
+# climate -----------------------------------------------------------------
+PET_Rain <- merge(PET, Rain, by = 'Date', all.x  = TRUE)
 
-## Joining PET and precipitation
-WaterBalance <- merge(PET, update_profile[,.(Date = as.Date(Date), Rainfall, Irrigation)], by = 'Date', all.x  = TRUE)
-# WaterBalance_60cm <- merge(PET, update_60cm[,.(Date = as.Date(Date), Rainfall, Irrigation)], by = 'Date', all.x  = TRUE)
-WaterBalance_60cm_irr1 <- merge(PET, update_60cm_irr1[,.(Date = as.Date(Date), Rainfall, Irrigation.1)], by = 'Date', all.x  = TRUE)
-WaterBalance_60cm_irr2 <- merge(PET, update_60cm_irr2[,.(Date = as.Date(Date), Rainfall, Irrigation.2)], by = 'Date', all.x  = TRUE)
-# Replace NA with 0 to do calculation
-WaterBalance[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
-                    Irrigation = ifelse(is.na(Irrigation), 0, Irrigation))
-             ][,Precipitation:=Rainfall+Irrigation]
+# # Join the irrigation  --------------------------------------------------
+joined_input <- merge.data.table(PET_Rain, irrigation, 
+                                 by = c("Date"), 
+                                 all.x = TRUE)
+# Transfer to wide to show in grafana
 
-WaterBalance_60cm_irr1[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
-                         Irrigation.1= ifelse(is.na(Irrigation.1), 0, Irrigation.1))
-                       ][,Precipitation:=Rainfall+Irrigation.1]
-WaterBalance_60cm_irr2[, ':='(Rainfall = ifelse(is.na(Rainfall), 0, Rainfall),
-                              Irrigation.2= ifelse(is.na(Irrigation.2), 0, Irrigation.2))
-][,Precipitation:=Rainfall+Irrigation.2]
+update_input <- dcast.data.table(joined_input, 
+                                 Date + PET + Rain + Crop ~ Treatment,
+                                 value.var = "Irrigation")[, ':='(`NA` = NULL,
+                                                                  Date = as.POSIXct(Date, tz = "NZ"))]
+# water balance -----------------------------------------------------------
 
+
+WaterBalance <- copy(update_input)[, ':='(Irrigation.1 = ifelse(is.na(Irrigation.1), 0, Irrigation.1),
+                                          Irrigation.2 = ifelse(is.na(Irrigation.2), 0, Irrigation.2))
+                                   ][, ':='(Precipitation.1 = Rain + Irrigation.1,
+                                            Precipitation.2 = Rain + Irrigation.2)]
 ## Define inputs 
 
-Ws0 <- -31
-Wt0 <- -41
-AWHC <- 280
-AWHC_60cm <- 93
-
-AWHCs <- 31
 # 2. value for Wt0 (water deficit at start time, also in mm)
 # 3. value for Ws0 (water deficit top soil at start time, also in mm)
 # 4. value for AWHC (available water holding capacity in mm)
 # 5. value for AWHCs (available water holding capacity for the top soil in mm)
+Ws0 <- NULL # Profile water deficit
+Wt0 <- NULL # Surface layer water deficit 
+AWHC <- max(DT_profile_simple$Profile)
+AWHC_60cm <- AWHC/8*3
+AWHCs <- AWHC/8 # hypothetical values - super close to the observed value
+# DT_summariesed[variable ==1 ]$SW %>% max()
 
-update_waterbalance <- ScotterWaterbalance(WaterBalance, Wt0, Ws0 = Ws0, AWHC = AWHC, AWHCs = AWHCs)
-update_waterbalance <- update_waterbalance[, Date:=as.POSIXct(Date, tz = "NZ")] 
-update_waterbalance_60cmirr1 <- ScotterWaterbalance(WaterBalance_60cm_irr1, Wt0, Ws0 = Ws0, AWHC = AWHC_60cm, AWHCs = AWHCs)
-update_waterbalance_60cmirr1 <- update_waterbalance_60cmirr1[, Date:=as.POSIXct(Date, tz = "NZ")] 
+## Prepare the critical input values 
+key <- c("Irrigation", "N_rate")
+PAWC_Profile <- PAWC_depth(DT_summariesed)
+PAWC_top20cm <- PAWC_depth(DT_summariesed, maxdepth = 1)
+SWD_Profile_Wt0 <- SWD_depth(DT_summariesed)[, .SD[1], by = key
+                                             ][order(get(key))]
+SWD_Profile_Ws0 <- SWD_depth(DT_summariesed, maxdepth = 1
+                             )[, .SD[1], by = key
+                               ][order(get(key))]
+Deficit <- merge.data.table(SWD_Profile_Wt0[,.(Irrigation, N_rate, SWD)],
+                            SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
+                            by = key, suffixes = c("Wt0","Ws0"))
+AWHC <- merge.data.table(PAWC_Profile[,.(Irrigation, N_rate, AWHc)],
+                         PAWC_top20cm[,.(Irrigation, N_rate, AWHc)],
+                            by = key, suffixes = c("","s"))
+WB_input <- merge.data.table(Deficit, AWHC, by = key)
+## Subset the water balance input data frame
+cmd <- paste0("WaterBalance[,.(Date, PET, Precipitation =  Precipitation.", rep(c(1,2), each = 4), ")]" )
+cmd <- paste0("list(", paste(cmd, collapse = ", "),")")
 
-update_waterbalance_60cmirr2 <- ScotterWaterbalance(WaterBalance_60cm_irr2, Wt0, Ws0 = Ws0, AWHC = AWHC_60cm, AWHCs = AWHCs)
-update_waterbalance_60cmirr2 <- update_waterbalance_60cmirr2[, Date:=as.POSIXct(Date, tz = "NZ")] 
+WB_input[, wbDT := eval(parse(text = cmd))]
 
-update_waterbalance %>% 
-  ggplot(aes(Date)) +
-  geom_point(aes(y = Wt)) +
-  geom_line(aes(y= Wt)) +
-  theme_classic()
+wb_list <- vector("list",length = nrow(WB_input))
+for(i in 1:nrow(WB_input)){
+ wb_list[[i]] <-  ScotterWaterbalance(WB_input$wbDT[[i]], 
+                                      Wt0 = WB_input$SWDWt0[i], 
+                                      Ws0 = WB_input$SWDWs0[i], 
+                                      AWHC = WB_input$AWHc[i],
+                                      AWHCs = WB_input$AWHcs[i])
+  
+}
+WB_input[, wb:= wb_list]
+wb <- WB_input[,  unlist(wb, recursive = FALSE), by = key]
 
-update_waterbalance_60cmirr1 %>% 
-  ggplot(aes(Date)) +
-  geom_point(aes(y = Wt)) +
-  geom_line(aes(y= Wt)) +
-  theme_classic()
+update_WaterBalance.1 <- dcast.data.table(wb[Irrigation == 1], Date ~ N_rate, 
+                                          value.var = c("Wt", "Drainage"))
+update_WaterBalance.1 <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
+                                      ][update_WaterBalance.1, on = "Date"]
 
-update_waterbalance[, ':='(CUMPET=cumsum(PET),
-                           CUMWATERINPUT= cumsum(Precipitation),
-                           CUMDrainage = cumsum(Drainage))]%>% 
-  ggplot(aes(Date)) +
-  geom_line(aes(y = CUMPET)) +
-  geom_line(aes(y= CUMWATERINPUT), color = "blue") +
-  geom_line(aes(y = CUMDrainage), color = "red")+
-  theme_classic()
-update_waterbalance_60cmirr1[, ':='(CUMPET=cumsum(PET),
-                           CUMWATERINPUT= cumsum(Precipitation),
-                           CUMDrainage = cumsum(Drainage))]%>% 
-  ggplot(aes(Date)) +
-  geom_line(aes(y = CUMPET)) +
-  geom_line(aes(y= CUMWATERINPUT), color = "blue") +
-  geom_line(aes(y = CUMDrainage), color = "red")+
-  theme_classic()
+update_WaterBalance.1 <- copy(profile_simpleSWD.irr1)[, Crop:= NULL
+                                                     ][update_WaterBalance.1, on = "Date"]
+update_WaterBalance.2 <- dcast.data.table(wb[Irrigation == 2], Date ~ N_rate, 
+                                          value.var =  c("Wt", "Drainage"))
+update_WaterBalance.2 <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.2)
+                                      ][update_WaterBalance.2, on = "Date"]
+update_WaterBalance.2 <- copy(profile_simpleSWD.irr2)[, Crop:= NULL
+                                                     ][update_WaterBalance.2, on = "Date"]
+
+# 60cm --------------------------------------------------------------------
+
+PAWC_Profile_60cm <- PAWC_depth(DT_summariesed, maxdepth = 3)
+SWD_Profile_Wt0_60cm <- SWD_depth(DT_summariesed, 
+                                  maxdepth = 3)[,.SD[1], by = key
+                                                ][order(get(key))]
+Deficit_60cm <- merge.data.table(SWD_Profile_Wt0_60cm[,.(Irrigation, N_rate, SWD)],
+                                 SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
+                                 by = key, suffixes = c("Wt0","Ws0"))
+AWHC_60cm <- merge.data.table(PAWC_Profile_60cm[,.(Irrigation, N_rate, AWHc)],
+                              PAWC_top20cm[,.(Irrigation, N_rate, AWHc)],
+                              by = key, suffixes = c("","s"))
+WB_input_60cm <- merge.data.table(Deficit_60cm, AWHC_60cm, by = key)
+## Subset the water balance input data frame
+cmd <- paste0("WaterBalance[,.(Date, PET, Precipitation =  Precipitation.", rep(c(1,2), each = 4), ")]" )
+cmd <- paste0("list(", paste(cmd, collapse = ", "),")")
+
+WB_input_60cm[, wbDT := eval(parse(text = cmd))]
+
+wb_list_60cm <- vector("list",length = nrow(WB_input_60cm))
+for(i in 1:nrow(WB_input)){
+  wb_list_60cm[[i]] <-  ScotterWaterbalance(WB_input_60cm$wbDT[[i]], 
+                                       Wt0 = WB_input_60cm$SWDWt0[i], 
+                                       Ws0 = WB_input_60cm$SWDWs0[i], 
+                                       AWHC = WB_input_60cm$AWHc[i],
+                                       AWHCs = WB_input_60cm$AWHcs[i])
+  
+}
+WB_input_60cm[, wb:= wb_list_60cm]
+wb_60cm <- WB_input_60cm[,  unlist(wb, recursive = FALSE), by = key]
+
+update_WaterBalance.1_60cm <- dcast.data.table(wb_60cm[Irrigation == 1], Date ~ N_rate, 
+                                               value.var = c("Wt", "Drainage"))
+update_WaterBalance.1_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
+                                           ][update_WaterBalance.1_60cm, on = "Date"]
+
+update_WaterBalance.1_60cm <- copy(update_simpleSWD.irr1)[, Crop:= NULL
+                                                          ][update_WaterBalance.1_60cm, on = "Date"]
+update_WaterBalance.2_60cm <- dcast.data.table(wb_60cm[Irrigation == 2], Date ~ N_rate, 
+                                               value.var =  c("Wt", "Drainage"))
+update_WaterBalance.2_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.2)
+                                           ][update_WaterBalance.2_60cm, on = "Date"]
+update_WaterBalance.2_60cm <- copy(update_simpleSWD.irr2)[, Crop:= NULL
+                                                          ][update_WaterBalance.2_60cm, on = "Date"]
