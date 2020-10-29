@@ -2,7 +2,7 @@
 # Aim:
 # Down load the nessary xlsx file 
 source("02scripts/packages.R")
-
+source("02scripts/simpleSWD.R")
 # source the soil water measurements --------------------------------------
 
 # options(RCurlOptions = list(proxy = 'http://proxy.pfr.co.nz:8080'),
@@ -12,15 +12,18 @@ source("02scripts/packages.R")
 url = "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/SVS_PotatoOnion_SoilWater.xlsx"
 
 sheet = "SoilWaterMainData"
-GET(url, authenticate(Sys.getenv("USERNAME"), Sys.getenv("PASSWORD"),
-                      type = "ntlm"), 
-    write_disk(tf <- tempfile(fileext = ".xlsx"), overwrite = TRUE)) 
+tf <- download_excel(url) 
 file.exists(tf)
 df <-  read_excel(tf, sheet, skip = 9,.name_repair = "universal") %>% 
   as.data.table()
+df[, Date := as.Date(Date, tz = "NZ")]
 excel_sheets(tf)
 df_irrigation <-  read_excel(tf, sheet = "IrrigationDiary", skip = 4,.name_repair = "universal") %>% 
   as.data.table()
+df_error <- read_excel(tf, sheet = "SWdata_metadata", skip = 9, .name_repair = "universal") %>% 
+  as.data.table()
+df_irrigation[, Date := as.Date(Date, tz = "NZ")]
+df_error[, Date := as.Date(Date, tz = "NZ")]
 
 ## Tidy the soil moisture data 
 
@@ -30,11 +33,14 @@ df[!is.na(Crop)]
 
 ## Manual download
 
-PET <- fread(here::here("01raw-data/PET.genform1_proc"), skip = 8)
-
+PET <- fread(here::here("01raw-data/PET_RAIN.genform1_proc"), skip = 8)
+Rain <- fread(here::here("01raw-data/PET_RAIN.genform1_proc"), skip = "Rain: Daily")
 ## Fix the date
-PET <- PET[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d,%H", tz = "NZ")
+# Somehow NIWA's datetime step can not be transfer directly to match excel datetime
+PET <- PET[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d", tz = "NZ")
            ][, .(Date, PET = `Amount(mm)`)]
+Rain <- Rain[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d", tz = "NZ")
+             ][, .(Date, Rain = `Amount(mm)`)]
 
 # devtools::install_github("ropensci/clifro", ref = "iss05")
 
