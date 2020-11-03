@@ -33,37 +33,50 @@ df[!is.na(Crop)]
 
 ## Manual download
 
-PET <- fread(here::here("01raw-data/PET_RAIN.genform1_proc"), skip = 8)
-Rain <- fread(here::here("01raw-data/PET_RAIN.genform1_proc"), skip = "Rain: Daily")
+# PET <- fread(here::here("01raw-data/PET_RAIN.genform1_proc"), skip = 8)
+# Rain <- fread(here::here("01raw-data/PET_RAIN.genform1_proc"), skip = "Rain: Daily")
 ## Fix the date
 # Somehow NIWA's datetime step can not be transfer directly to match excel datetime
-PET <- PET[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d", tz = "NZ")
-           ][, .(Date, PET = `Amount(mm)`)]
-Rain <- Rain[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d", tz = "NZ")
-             ][, .(Date, Rain = `Amount(mm)`)]
+# PET <- PET[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d", tz = "NZ")
+#            ][, .(Date, PET = `Amount(mm)`)]
+# Rain <- Rain[, Date := as.Date(`Date(NZST)`, format = "%Y,%m,%d", tz = "NZ")
+#              ][, .(Date, Rain = `Amount(mm)`)]
+
+
+
+# auto --------------------------------------------------------------------
+
 
 # devtools::install_github("ropensci/clifro", ref = "iss05")
 
-cf_user()
+# cf_user()
 ## Credentials 
-# me = cf_user(Sys.getenv("clifro_usr"),
-#              Sys.getenv("clifro_pass"))
+me = cf_user(Sys.getenv("clifro_usr"),
+             Sys.getenv("clifro_pass"))
 # 
 # ## Datatypes 
-# 
-# my.dts = cf_datatype(select_1 =     c(9), 
-#                      select_2 =     c(1), 
-#                      check_box = list(4), 
-#                      combo_box =    c(NA))
+# PET and daily rainfall
+my.dts = cf_datatype(select_1 =     c(9, 3),
+                     select_2 =     c(1, 1),
+                     check_box = list(4, 1),
+                     combo_box =    c(NA, NA))
 # my.dts
 # 
 # ## Station 
-# agentno <- 17603L
-# my.station <- cf_station(agentno)
+agentno <- 17603L
+my.station <- cf_station(agentno)
 # 
 # ## Retrieve data
-# cf.datalist <- cf_query(user = me,
-#                         datatype = my.dts,
-#                         station = my.station,
-#                         start_date = "2020-07-01 00",
-#                         end_date = Sys.Date())
+cf.datalist <- cf_query(user = me,
+                        datatype = my.dts,
+                        station = my.station,
+                        start_date = "2019-10-29 00",
+                        end_date = Sys.Date())
+
+PET <- as.data.table(cf.datalist[[1]])[, Date := as.Date(`Date(local)`, 
+                                                         format = "%Y-%m-%d", tz = "NZ")
+                                       ][, .(Date, PET = `Amount(mm)`)]
+
+Rain <- as.data.table(cf.datalist[[2]])[, Date := as.Date(`Date(local)`, 
+                                                         format = "%Y-%m-%d", tz = "NZ")
+                                        ][, .(Date, Rain = `Amount(mm)`)]
