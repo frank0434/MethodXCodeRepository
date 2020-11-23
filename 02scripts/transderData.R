@@ -37,7 +37,7 @@ DT_summariesed <- DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = 
 
 # Transfer layer information to integer layers
 layers_name <- unique(DT_summariesed$variable)
-layers_no <- c(1, 6, 7, 8, 2, 3, 4,5)
+layers_no <- c(1,5, 6, 7, 8, 2, 3, 4)
 names(layers_no) <- layers_name
 DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 
