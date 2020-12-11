@@ -1,8 +1,7 @@
 
 # Aim:
 # Manipulate data 
-source("02scripts/sourceData.R")
-source("02scripts/ScotterWaterbalance.R")
+
 # required cols 
 cols <- grep("^\\w", colnames(df), value = TRUE)
 
@@ -24,13 +23,19 @@ NAcells <- metadata[, Comments:=NULL][value == 1]
 DT_long <- melt(DT, 
                 id.vars = id_var, measure.vars = value_var, 
                 variable.factor = FALSE)[, value := as.numeric(value)]
-DTwithmeta <- merge.data.table(DT_long, NAcells, 
-                               by.x = c("Date", "Field_Plot_No", "variable"),
-                               by.y = c("Date", "Plot", "variable"), 
-                               all.x = TRUE, suffixes = c("", ".y"))
-DTwithmeta <- DTwithmeta[is.na(value.y)
-                         ][, value.y := NULL
-                           ]
+if(nrow(NAcells) == 0){
+  DTwithmeta <- DT_long
+} else{
+  DTwithmeta <- merge.data.table(DT_long, NAcells, 
+                                 by.x = c("Date", "Field_Plot_No", "variable"),
+                                 by.y = c("Date", "Plot", "variable"), 
+                                 all.x = TRUE, suffixes = c("", ".y"))
+  DTwithmeta <- DTwithmeta[is.na(value.y)
+  ][, value.y := NULL
+  ]
+  
+  
+}
 # value is doubled to get the mm unit, `thickness` holds the converter. 
 DT_summariesed <- DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = TRUE)), 
                              by = .(Crop, Date, variable, Irrigation...8, N_rate)]
@@ -80,6 +85,7 @@ update_irr2 <- dcast.data.table(DT_profile_simple[Irrigation == 2],
 PET_Rain <- merge(PET, Rain, by = 'Date', all.x  = TRUE)
 
 # # Join the irrigation  --------------------------------------------------
+
 joined_input <- merge.data.table(PET_Rain, irrigation, 
                                  by = c("Date"), 
                                  all.x = TRUE)
@@ -89,6 +95,13 @@ update_input <- dcast.data.table(joined_input,
                                  Date + PET + Rain + Crop ~ Treatment,
                                  value.var = "Irrigation")[, ':='(`NA` = NULL,
                                                                   Date = as.POSIXct(Date, tz = "NZ"))]
+
+
+if(sum(paste0("Irrigation.", 1:2) %in% colnames(update_input)) == 0){
+  update_input[, ':='(Irrigation.1 = 0,
+                      Irrigation.2 = 0)]
+  
+  }
 # water balance -----------------------------------------------------------
 
 
