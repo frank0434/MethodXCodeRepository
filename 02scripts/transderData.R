@@ -7,7 +7,7 @@ source("02scripts/ScotterWaterbalance.R")
 cols <- grep("^\\w", colnames(df), value = TRUE)
 
 # Subset
-DT <- df[!is.na(Crop), ..cols]
+DT <- df[!is.na(Crop) & !is.na(Date), ..cols]
 
 # Constant
 colnames <- colnames(DT)
