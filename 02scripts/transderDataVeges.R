@@ -6,7 +6,7 @@
 cols <- grep("^\\w", colnames(df), value = TRUE)
 
 # Subset
-DT <- df[!is.na(Crop), ..cols]
+DT <- df[!is.na(Crop)& !is.na(Date), ..cols]
 
 # Constant
 colnames <- colnames(DT)
@@ -50,13 +50,15 @@ DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 ## Simple SWD uses a user-defined PAWC (usually the maximum value over a series measurement)
 ## SWD is calculated by subtracting the PAWC by the actual measurement
 
-DT_profile_simple_60cm <- SWD_depth(DT_summariesed, maxdepth = 3)
+DT_profile_simple_60cm <- SWD_depth(DT_summariesed, maxdepth = 3, PAWC = 210)
 
 update_simpleSWD.irr1 <- dcast.data.table(DT_profile_simple_60cm[Irrigation == 1],
                                           Crop + Date ~ N_rate, value.var = "SWD")
+update_simpleSWD.irr1$colmean <- rowMeans(update_simpleSWD.irr1[,-(1:2)], na.rm = TRUE)
+
 update_simpleSWD.irr2 <- dcast.data.table(DT_profile_simple_60cm[Irrigation == 2],
                                           Crop + Date ~ N_rate, value.var = "SWD")
-
+update_simpleSWD.irr2$colmean <- rowMeans(update_simpleSWD.irr2[,-(1:2)], na.rm = TRUE)
 DT_profile_simple <- SWD_depth(DT_summariesed)
 
 profile_simpleSWD.irr1 <- dcast.data.table(DT_profile_simple[Irrigation == 1],
