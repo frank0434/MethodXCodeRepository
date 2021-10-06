@@ -1,7 +1,7 @@
 
 # Aim:
 # Manipulate data 
-source("C:/Data/SVS/02scripts/sourceData.R")
+source("C:/Data/SVS/02scripts/sourceDataHB.R")
 source("C:/Data/SVS/02scripts/ScotterWaterbalance.R")
 # required cols 
 cols <- grep("^\\w", colnames(df), value = TRUE)
@@ -24,13 +24,18 @@ NAcells <- metadata[, Comments:=NULL][value == 1]
 DT_long <- melt(DT, 
                 id.vars = id_var, measure.vars = value_var, 
                 variable.factor = FALSE)[, value := as.numeric(value)]
-DTwithmeta <- merge.data.table(DT_long, NAcells, 
-                               by.x = c("Date", "Field_Plot_No", "variable"),
-                               by.y = c("Date", "Plot", "variable"), 
-                               all.x = TRUE, suffixes = c("", ".y"))
-DTwithmeta <- DTwithmeta[is.na(value.y)
-                         ][, value.y := NULL
-                           ]
+## only join the metadata if bad values oberserved 
+if (isTRUE(nrow(NAcells) > 0)) {
+  DTwithmeta <- merge.data.table(DT_long, NAcells, 
+                                 by.x = c("Date", "Field_Plot_No", "variable"),
+                                 by.y = c("Date", "Plot", "variable"), 
+                                 all.x = TRUE, suffixes = c("", ".y"))
+  DTwithmeta <- DTwithmeta[is.na(value.y)
+                           ][, value.y := NULL]
+  
+} else {
+    DTwithmeta <- DT_long
+  }
 # value is doubled to get the mm unit, `thickness` holds the converter. 
 DT_summariesed <- DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = TRUE)), 
                              by = .(Crop, Date, variable, Irrigation...8, N_rate)]
