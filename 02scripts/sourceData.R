@@ -1,8 +1,8 @@
 
 # Aim:
 # Down load the nessary xlsx file 
-source("02scripts/packages.R")
-source("02scripts/simpleSWD.R")
+source("C:/Data/SVS/02scripts/packages.R")
+source("C:/Data/SVS/02scripts/simpleSWD.R")
 # source the soil water measurements --------------------------------------
 
 # options(RCurlOptions = list(proxy = 'http://proxy.pfr.co.nz:8080'),
@@ -51,8 +51,8 @@ df[!is.na(Crop)]
 
 # cf_user()
 ## Credentials 
-me = cf_user(Sys.getenv("clifro_usr"),
-             Sys.getenv("clifro_pass"))
+me = cf_user("linc3423",
+             "broadfield")
 # 
 # ## Datatypes 
 # PET and daily rainfall

@@ -13,8 +13,8 @@
 #' @examples
 #' 
 download_excel <- function(url, 
-                           username = Sys.getenv("USERNAME"), 
-                           pass = Sys.getenv("PASSWORD")){
+                           username = "cflfcl", 
+                           pass =  Sys.getenv("PASSWORD")){
   httr::GET(url, authenticate(user = username, password = pass,
                         type = "ntlm"), 
       write_disk(tf <- tempfile(fileext = ".xlsx"), overwrite = TRUE))
