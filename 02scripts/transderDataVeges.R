@@ -42,7 +42,7 @@ DT_summariesed <- DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = 
 
 # Transfer layer information to integer layers
 layers_name <- unique(DT_summariesed$variable)
-layers_no <- c(1,5, 6, 7, 8, 2, 3, 4)
+layers_no <- c(1, 6, 7, 8, 2, 3, 4, 5)
 names(layers_no) <- layers_name
 DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 
@@ -50,21 +50,29 @@ DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 ## Simple SWD uses a user-defined PAWC (usually the maximum value over a series measurement)
 ## SWD is calculated by subtracting the PAWC by the actual measurement
 
-DT_profile_simple_60cm <- SWD_depth(DT_summariesed, maxdepth = 3, PAWC = 210)
+# DT_profile_simple_60cm <- SWD_depth(DT_summariesed, maxdepth = 3, PAWC = 210)
+## Empty list to store things
+l <- vector("list", length = 3)
+Profiles <- paste(c(20, 40, 60), "cm")
+for (i in seq_len(3)){
+  DT_profile_simple_60cm <- SWD_depth(DT_summariesed, maxdepth = i)
+  l[[i]] <- DT_profile_simple_60cm[, profile := Profiles[i]]
+}
+DT_profile_simple_60cm <- rbindlist(l)
 
 update_simpleSWD.irr1 <- dcast.data.table(DT_profile_simple_60cm[Irrigation == 1],
-                                          Crop + Date ~ N_rate, value.var = "SWD")
-update_simpleSWD.irr1$colmean <- rowMeans(update_simpleSWD.irr1[,-(1:2)], na.rm = TRUE)
+                                          Crop + Date  + profile~ N_rate, value.var = "SWD")
+# update_simpleSWD.irr1$colmean <- rowMeans(update_simpleSWD.irr1[,-(1:2)], na.rm = TRUE)
 
 update_simpleSWD.irr2 <- dcast.data.table(DT_profile_simple_60cm[Irrigation == 2],
-                                          Crop + Date ~ N_rate, value.var = "SWD")
-update_simpleSWD.irr2$colmean <- rowMeans(update_simpleSWD.irr2[,-(1:2)], na.rm = TRUE)
+                                          Crop + Date  + profile~ N_rate, value.var = "SWD")
+# update_simpleSWD.irr2$colmean <- rowMeans(update_simpleSWD.irr2[,-(1:2)], na.rm = TRUE)
 DT_profile_simple <- SWD_depth(DT_summariesed)
 
 profile_simpleSWD.irr1 <- dcast.data.table(DT_profile_simple[Irrigation == 1],
                                           Crop + Date ~ N_rate, value.var = "SWD")
 profile_simpleSWD.irr2 <- dcast.data.table(DT_profile_simple[Irrigation == 2],
-                                          Crop + Date ~ N_rate, value.var = "SWD")
+                                          Crop + Date  ~ N_rate, value.var = "SWD")
 
 
 # WATER BALANCE -----------------------------------------------------------
