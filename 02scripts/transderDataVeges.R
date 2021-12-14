@@ -160,7 +160,7 @@ for(i in 1:nrow(WB_input)){
                                       Wt0 = WB_input$SWDWt0[i], 
                                       Ws0 = WB_input$SWDWs0[i], 
                                       AWHC = WB_input$AWHc[i],
-                                      AWHCs = WB_input$AWHcs[i])
+                                      AWHCs = WB_input$AWHcs[i], reset = FALSE)
   
 }
 WB_input[, wb:= wb_list]
@@ -171,8 +171,9 @@ update_WaterBalance.1 <- dcast.data.table(wb[Irrigation == 1], Date ~ N_rate,
 update_WaterBalance.1 <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
                                       ][update_WaterBalance.1, on = "Date"]
 
-update_WaterBalance.1 <- copy(profile_simpleSWD.irr1)[, Crop:= NULL
-                                                     ][update_WaterBalance.1, on = "Date"]
+update_WaterBalance.1 <- copy(profile_simpleSWD.irr1)[, ':='(Crop = NULL,
+                                                             Date = as.Date(Date))
+                                                      ][update_WaterBalance.1, on = "Date"]
 update_WaterBalance.2 <- dcast.data.table(wb[Irrigation == 2], Date ~ N_rate, 
                                           value.var =  c("Wt", "Drainage"))
 update_WaterBalance.2 <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.2)
@@ -186,6 +187,11 @@ PAWC_Profile_60cm <- PAWC_depth(DT_summariesed, maxdepth = 3)
 SWD_Profile_Wt0_60cm <- SWD_depth(DT_summariesed, 
                                   maxdepth = 3)[,.SD[1], by = key
                                                 ][order(get(key))]
+# The actual measurements for reset the water balance model 
+reset_df <- SWD_depth(DT_summariesed, maxdepth = 3)
+# Nested into a list column for easy looping through
+reset_df <- reset_df[, list(realSWD = list(.SD)), by = .(Irrigation, N_rate)]
+# Merge the initial values required by water balance model
 Deficit_60cm <- merge.data.table(SWD_Profile_Wt0_60cm[,.(Irrigation, N_rate, SWD)],
                                  SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
                                  by = key, suffixes = c("Wt0","Ws0"))
@@ -193,34 +199,90 @@ AWHC_60cm <- merge.data.table(PAWC_Profile_60cm[,.(Irrigation, N_rate, AWHc)],
                               PAWC_top20cm[,.(Irrigation, N_rate, AWHc)],
                               by = key, suffixes = c("","s"))
 WB_input_60cm <- merge.data.table(Deficit_60cm, AWHC_60cm, by = key)
+
 ## Subset the water balance input data frame
 cmd <- paste0("WaterBalance[,.(Date, PET, Precipitation =  Precipitation.", rep(c(1,2), each = 4), ")]" )
 cmd <- paste0("list(", paste(cmd, collapse = ", "),")")
 
 WB_input_60cm[, wbDT := eval(parse(text = cmd))]
-
+# Nested the rain, PET and irrigation into a list 
 wb_list_60cm <- vector("list",length = nrow(WB_input_60cm))
+
+# Calculate the water balance without reseting values of actual measurements
 for(i in 1:nrow(WB_input)){
   wb_list_60cm[[i]] <-  ScotterWaterbalance(WB_input_60cm$wbDT[[i]], 
-                                       Wt0 = WB_input_60cm$SWDWt0[i], 
-                                       Ws0 = WB_input_60cm$SWDWs0[i], 
-                                       AWHC = WB_input_60cm$AWHc[i],
-                                       AWHCs = WB_input_60cm$AWHcs[i])
+                                            Wt0 = WB_input_60cm$SWDWt0[i], 
+                                            Ws0 = WB_input_60cm$SWDWs0[i], 
+                                            AWHC = WB_input_60cm$AWHc[i],
+                                            AWHCs = WB_input_60cm$AWHcs[i],
+                                            reset = FALSE)
   
 }
+
 WB_input_60cm[, wb:= wb_list_60cm]
 wb_60cm <- WB_input_60cm[,  unlist(wb, recursive = FALSE), by = key]
 
 update_WaterBalance.1_60cm <- dcast.data.table(wb_60cm[Irrigation == 1], Date ~ N_rate, 
-                                               value.var = c("Wt", "Drainage"))
-update_WaterBalance.1_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
+                                               value.var = c("Wt",  "Drainage"))
+update_WaterBalance.1_60cm <- WaterBalance[, Date := as.Date(Date)
+                                           ][, .(Date, PET, Precipitation = Precipitation.1)
                                            ][update_WaterBalance.1_60cm, on = "Date"]
 
-update_WaterBalance.1_60cm <- copy(update_simpleSWD.irr1)[, Crop:= NULL
+update_WaterBalance.1_60cm <- copy(update_simpleSWD.irr1)[, ':='(Crop = NULL,
+                                                                 Date = as.Date(Date))
                                                           ][update_WaterBalance.1_60cm, on = "Date"]
 update_WaterBalance.2_60cm <- dcast.data.table(wb_60cm[Irrigation == 2], Date ~ N_rate, 
                                                value.var =  c("Wt", "Drainage"))
-update_WaterBalance.2_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.2)
-                                           ][update_WaterBalance.2_60cm, on = "Date"]
-update_WaterBalance.2_60cm <- copy(update_simpleSWD.irr2)[, Crop:= NULL
+update_WaterBalance.2_60cm <- WaterBalance[, Date := as.Date(Date)
+                                           ][, .(Date, PET, Precipitation = Precipitation.2)
+                                             ][update_WaterBalance.2_60cm, on = "Date"]
+update_WaterBalance.2_60cm <- copy(update_simpleSWD.irr2)[, ':='(Crop = NULL,
+                                                                 Date = as.Date(Date))
                                                           ][update_WaterBalance.2_60cm, on = "Date"]
+
+
+# Resetting values 
+wb_list_60cm_reset <- vector("list",length = nrow(WB_input_60cm))
+for(i in 1:nrow(WB_input)){
+  wb_list_60cm_reset[[i]] <-  ScotterWaterbalance(WB_input_60cm$wbDT[[i]], 
+                                                  Wt0 = WB_input_60cm$SWDWt0[i], 
+                                                  Ws0 = WB_input_60cm$SWDWs0[i], 
+                                                  AWHC = WB_input_60cm$AWHc[i],
+                                                  AWHCs = WB_input_60cm$AWHcs[i],
+                                                  reset = TRUE,
+                                                  reset_dt = reset_df$realSWD[[i]])
+}
+WB_input_60cm[, wb_reset:= wb_list_60cm_reset]
+wb_60cm_reset <- WB_input_60cm[,  unlist(wb_reset, recursive = FALSE), by = key]
+
+update_WaterBalance.1_60cm_reset <- dcast.data.table(wb_60cm_reset[Irrigation == 1], Date ~ N_rate, 
+                                                     value.var = c("Wt",  "SWD","Drainage"))
+update_WaterBalance.1_60cm_reset <- WaterBalance[, Date := as.Date(Date)
+                                                 ][, .(Date, PET, Precipitation = Precipitation.1)
+                                                   ][update_WaterBalance.1_60cm_reset, on = "Date"]
+
+update_WaterBalance.1_60cm_reset <- copy(update_simpleSWD.irr1)[, ':='(Crop = NULL,
+                                                                 Date = as.Date(Date))
+                                                                ][update_WaterBalance.1_60cm_reset, on = "Date"]
+update_WaterBalance.2_60cm_reset <- dcast.data.table(wb_60cm_reset[Irrigation == 2], Date ~ N_rate, 
+                                                     value.var =  c("Wt", "Drainage"))
+update_WaterBalance.2_60cm_reset <- WaterBalance[, Date := as.Date(Date)
+                                           ][, .(Date, PET, Precipitation = Precipitation.2)
+                                             ][update_WaterBalance.2_60cm_reset, on = "Date"]
+update_WaterBalance.2_60cm_reset <- copy(update_simpleSWD.irr2)[, ':='(Crop = NULL,
+                                                                 Date = as.Date(Date))
+                                                                ][update_WaterBalance.2_60cm_reset, on = "Date"]
+
+
+# visualise them to see any different  ------------------------------------
+
+# update_WaterBalance.1_60cm %>% 
+#   ggplot(aes(x = Date, y = `Nitrogen 1`, color = profile)) +
+#   geom_point() +
+#   geom_line(aes(y = `Wt_Nitrogen 1`)) 
+# 
+# 
+# update_WaterBalance.1_60cm_reset %>% 
+#   ggplot(aes(x = Date, y = `Nitrogen 1`, color = profile)) +
+#   geom_point() +
+#   geom_line(aes(y = `Wt_Nitrogen 1`)) 

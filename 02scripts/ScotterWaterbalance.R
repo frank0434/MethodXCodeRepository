@@ -20,10 +20,19 @@
 
 
 
-ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs){
+ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs, 
+                                reset = TRUE, reset_dt = NULL){
   cols <- colnames(weatherdata)
   stopifnot("Precipitation" %in% cols)
-  df_WaterBalance_outputs <- weatherdata 
+  df_WaterBalance_outputs <- weatherdata[, Date := as.Date(Date)] 
+
+  if(!is.null(reset_dt)){
+    dt <- reset_dt[, Date := as.Date(Date)]
+    df_WaterBalance_outputs <- merge.data.table(df_WaterBalance_outputs,
+                                                dt, by = "Date", all.x = TRUE)
+    
+  }
+  
   
   df_WaterBalance_outputs$Ws <- Ws0 
   df_WaterBalance_outputs$Es <- 0 
@@ -37,6 +46,27 @@ ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs){
   
    
    for (t in 2:n){
+     if(isTRUE(reset)){
+       ## RESET STUFF 
+       df_WaterBalance_outputs$Es[t] =   min(weatherdata$PET[t], (AWHCs+df_WaterBalance_outputs$Ws[t-1]))
+       
+       df_WaterBalance_outputs$Ws[t] =   min(0, (df_WaterBalance_outputs$Ws[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$Es[t]))
+       
+       df_WaterBalance_outputs$RAW[t]= (0.0073*(weatherdata$PET[t]*(AWHC+df_WaterBalance_outputs$Wt[t-1])))
+       
+       df_WaterBalance_outputs$Ex[t]= max(df_WaterBalance_outputs$Es[t], (weatherdata$PET[t]*((AWHC+df_WaterBalance_outputs$Wt[t-1])/(AWHC-df_WaterBalance_outputs$RAW[t]))))
+       
+       df_WaterBalance_outputs$AET[t]=min(weatherdata$PET[t],df_WaterBalance_outputs$Ex[t])
+       
+       df_WaterBalance_outputs$Wt[t]= min(0, ifelse(!is.na(df_WaterBalance_outputs$SWD[t]), df_WaterBalance_outputs$SWD[t],
+                                                    (df_WaterBalance_outputs$Wt[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$AET[t])))
+       
+       df_WaterBalance_outputs$Drainage[t]=max(0,df_WaterBalance_outputs$Wt[t]+df_WaterBalance_outputs$Wt[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$AET[t])
+       
+       
+     } else {
+       
+     
      df_WaterBalance_outputs$Es[t] =   min(weatherdata$PET[t], (AWHCs+df_WaterBalance_outputs$Ws[t-1]))
      
      df_WaterBalance_outputs$Ws[t] =   min(0, (df_WaterBalance_outputs$Ws[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$Es[t]))
@@ -51,7 +81,7 @@ ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs){
    
      df_WaterBalance_outputs$Drainage[t]=max(0,df_WaterBalance_outputs$Wt[t]+df_WaterBalance_outputs$Wt[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$AET[t])
      
-       
+     }  
    }
    
  return(df_WaterBalance_outputs)  
