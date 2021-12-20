@@ -5,23 +5,36 @@ source("C:/Data/SVS/02scripts/packages.R")
 source("C:/Data/SVS/02scripts/simpleSWD.R")
 # source the soil water measurements --------------------------------------
 
-# options(RCurlOptions = list(proxy = 'http://proxy.pfr.co.nz:8080'),
-#         proxyusername  = Sys.getenv("USERNAME"), 
-#         proxypassword  = Sys.getenv("PASSWORD"),
-#         ssl.verifypeer = FALSE)
-url = "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/SVS_PotatoOnion_SoilWater.xlsx"
-
-sheet = "SoilWaterMainData"
+## Iplant address that has the soil water measurements 
+url <- "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/SVS_PotatoOnion_SoilWater.xlsx"
+## Sheet name for the raw soil water content 
+sheet <- "SoilWaterMainData"
+## Download the excel file to a temp directory 
 tf <- download_excel(url) 
+## Check if the file exisits
 file.exists(tf)
+## Read data in 
 df <-  read_excel(tf, sheet, skip = 9,.name_repair = "universal") %>% 
   as.data.table()
-df[, Date := as.Date(Date, tz = "NZ")]
-excel_sheets(tf)
+## The irrigation data 
 df_irrigation <-  read_excel(tf, sheet = "IrrigationDiary", skip = 4,.name_repair = "universal") %>% 
   as.data.table()
+## Manual correction about the neutron probe data 
 df_error <- read_excel(tf, sheet = "SWdata_metadata", skip = 9, .name_repair = "universal") %>% 
   as.data.table()
+# Read Diary for guessing the plant growth stage ---------------------------
+url_diary <- "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/DIARY%20for%20SVS%20Potato-Onion%20rotation.xlsx"
+sheet_diary <- "Diary"
+tf_diary <- download_excel(url) 
+## Check if the file exisits
+file.exists(tf_diary)
+## Read data in 
+df_diary <-  read_excel(tf_diary, sheet_diary, skip = 18, .name_repair = "universal") %>% 
+  as.data.table()
+
+
+## Convert the date to NZ timezone 
+df[, Date := as.Date(Date, tz = "NZ")]
 df_irrigation[, Date := as.Date(Date, tz = "NZ")]
 df_error[, Date := as.Date(Date, tz = "NZ")]
 
