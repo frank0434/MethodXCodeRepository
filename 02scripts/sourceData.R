@@ -29,7 +29,7 @@ tf_diary <- download_excel(url_diary)
 ## Check if the file exists
 file.exists(tf_diary)
 ## Read data in 
-df_diary <-  read_excel(tf_diary, sheet_diary, skip = 18, .name_repair = "universal", n_max = 1000) %>% 
+df_diary <-  read_excel(tf_diary, sheet_diary, skip = 18, .name_repair = "universal", n_max = 100000) %>% 
   as.data.table()
 
 # Read greenseeker or sunscan for knowing the full canopy clourse  --------
