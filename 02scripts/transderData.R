@@ -214,7 +214,8 @@ for(i in 1:nrow(WB_input)){
                                       Wt0 = WB_input$SWDWt0[i], 
                                       Ws0 = WB_input$SWDWs0[i], 
                                       AWHC = WB_input$AWHc[i],
-                                      AWHCs = WB_input$AWHcs[i])
+                                      AWHCs = WB_input$AWHcs[i], 
+                                      reset = FALSE)
   
 }
 WB_input[, wb:= wb_list]
@@ -259,7 +260,8 @@ for(i in 1:nrow(WB_input)){
                                        Wt0 = WB_input_60cm$SWDWt0[i], 
                                        Ws0 = WB_input_60cm$SWDWs0[i], 
                                        AWHC = WB_input_60cm$AWHc[i],
-                                       AWHCs = WB_input_60cm$AWHcs[i])
+                                       AWHCs = WB_input_60cm$AWHcs[i], 
+                                       reset = FALSE)
   
 }
 WB_input_60cm[, wb:= wb_list_60cm]
