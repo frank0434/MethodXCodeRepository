@@ -25,19 +25,24 @@ df_error <- read_excel(tf, sheet = "SWdata_metadata", skip = 9, .name_repair = "
 # Read Diary for guessing the plant growth stage ---------------------------
 url_diary <- "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/DIARY%20for%20SVS%20Potato-Onion%20rotation.xlsx"
 sheet_diary <- "Diary"
-tf_diary <- download_excel(url) 
-## Check if the file exisits
+tf_diary <- download_excel(url_diary) 
+## Check if the file exists
 file.exists(tf_diary)
 ## Read data in 
-df_diary <-  read_excel(tf_diary, sheet_diary, skip = 18, .name_repair = "universal") %>% 
+df_diary <-  read_excel(tf_diary, sheet_diary, skip = 18, .name_repair = "universal", n_max = 1000) %>% 
   as.data.table()
+
+# Read greenseeker or sunscan for knowing the full canopy clourse  --------
+
+
+
 
 
 ## Convert the date to NZ timezone 
 df[, Date := as.Date(Date, tz = "NZ")]
 df_irrigation[, Date := as.Date(Date, tz = "NZ")]
 df_error[, Date := as.Date(Date, tz = "NZ")]
-
+df_diary[, Date := as.Date(Date, tz = "NZ")]
 ## Tidy the soil moisture data 
 
 

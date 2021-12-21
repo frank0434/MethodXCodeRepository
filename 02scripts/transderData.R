@@ -6,7 +6,7 @@ source("C:/Data/SVS/02scripts/ScotterWaterbalance.R")
 # required cols 
 cols <- grep("^\\w", colnames(df), value = TRUE)
 
-# Subset
+# Filtered out NAs
 DT <- df[!is.na(Crop) & !is.na(Date), ..cols]
 
 # Constant
@@ -19,30 +19,57 @@ id_var <- c("Crop", "Date", "Field_Plot_No", "Plot_No","Irrigation...8", "N_rate
 # Missing or erroneous values will be removed by join the metadata which has the
 # information about bad values
 metadata <- melt.data.table(df_error, measure = patterns("VWC_*"))
+## Remove comment column and filter down which value was missing 
 NAcells <- metadata[, Comments:=NULL][value == 1]
-
+## Get the raw measurements into long format 
 DT_long <- melt(DT, 
                 id.vars = id_var, measure.vars = value_var, 
                 variable.factor = FALSE)[, value := as.numeric(value)]
+## merge the raw with manual correction table
 DTwithmeta <- merge.data.table(DT_long, NAcells, 
                                by.x = c("Date", "Field_Plot_No", "variable"),
                                by.y = c("Date", "Plot", "variable"), 
                                all.x = TRUE, suffixes = c("", ".y"))
+## remove the bad ones
 DTwithmeta <- DTwithmeta[is.na(value.y)
-                         ][, value.y := NULL
-                           ]
+                         ][, value.y := NULL]
 # value is doubled to get the mm unit, `thickness` holds the converter. 
 DT_summariesed <- DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = TRUE)), 
                              by = .(Crop, Date, variable, Irrigation...8, N_rate)]
 
 # Transfer layer information to integer layers
 layers_name <- unique(DT_summariesed$variable)
-
+## Hard code layer 
 layers_no <- c(1,  6, 7, 8, 2, 3, 4,5)
 
 names(layers_no) <- layers_name
 DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 
+# The diary data for plant growth stages  ---------------------------------
+
+## Pattern search was way to complex, manually pull out the critical dates
+dates_of_interests <- as.Date(c("2019-10-22", "2020-04-19",
+                                "2020-05-19", "2020-06-03", "2021-01-21",
+                                "2021-03-03", "2021-06-28", 
+                                "2021-09-07"))
+event_of_interests <- c("Potato planted",
+                        "Potato final-harvest",
+                        "Wheat sown",
+                        "Wheat ermerged",
+                        "Wheat final-harvest",
+                        "Broccoli planted",
+                        "Broccoli final-harvest",
+                        "Onion sown")
+growth_event <- data.table(Date = dates_of_interests, 
+                           Events = event_of_interests
+                           )[, (c("Crop", "Events")) := tstrsplit(Events, split = "\\s")
+                             ][Events %like% c("ermerg|harvest|plant")]
+## Bring the canopy closure data from ProcessCanopyCover.R file 
+source("02scripts/ProcessCanopyCover.R")
+growth_stage <- merge.data.table(growth_event, full_canopy, all = TRUE, by = "Date")
+## Tidy up the stages 
+growth_stage[, ':='(Crop =ifelse(is.na(Crop), as.character(Var2), Crop),
+                    Events = ifelse(is.na(Events), "canopy-closure", Events) )]
 # Simple SWD --------------------------------------------------------------
 ## Simple SWD uses a user-defined PAWC (usually the maximum value over a series measurement)
 ## SWD is calculated by subtracting the PAWC by the actual measurement
