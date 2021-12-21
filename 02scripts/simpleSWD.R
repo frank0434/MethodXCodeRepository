@@ -52,12 +52,12 @@ SWD_depth <- function(DT, colname = "variable", maxdepth = 8, PAWC = NULL){
                        ][, ':='(SWD = Profile - PAWC,
                                 Irrigation = Irrigation...8,
                                 N_rate = paste0("Nitrogen ", N_rate),
-                                Date = as.POSIXct(Date, tz = "NZ"))]
+                                Date = as.Date(Date, tz = "NZ"))]
   } else{
     DT_profile[, ':='(SWD = Profile - PAWC,
                       Irrigation = Irrigation...8,
                       N_rate = paste0("Nitrogen ", N_rate),
-                      Date = as.POSIXct(Date, tz = "NZ"))]
+                      Date = as.Date(Date, tz = "NZ"))]
     }
   return(DT_profile)
 }
