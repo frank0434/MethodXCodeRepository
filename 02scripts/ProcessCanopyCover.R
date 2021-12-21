@@ -5,7 +5,9 @@ base_url <- "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/"
 crops <- c("Onion", "Onions","Wheat", "Broccoli","Potato")
 tech <- c("Sunscan", "Greenseeker")
 filepath <- as.data.table(expand.grid("SVSLincoln", crops, tech))
+# filepath <- rbindlist(list(filepath, list("SVSLincoln", "Potato", "Greenseeker")))
 filepath[, paths := paste0(base_url, Var1, "_", Var2, "_",Var3, ".xlsx")]
+filepath
 l <- sapply(filepath$paths, function(x){
   r <- httr::GET(x, authenticate(user = Sys.getenv("USERNAME"), 
                                  password = Sys.getenv("PASSWORD"),
