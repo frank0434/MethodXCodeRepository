@@ -47,15 +47,19 @@ DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 
 # The diary data for plant growth stages  ---------------------------------
 
+## Bring the canopy closure data from ProcessCanopyCover.R file 
+source("02scripts/ProcessCanopyCover.R")
+
 ## Pattern search was way to complex, manually pull out the critical dates
-dates_of_interests <- as.Date(c("2019-10-22", "2020-04-19",
+dates_of_interests <- as.Date(c("2019-10-22", "2019-11-12","2020-04-29",
                                 "2020-05-19", "2020-06-03", "2021-01-21",
                                 "2021-03-03", "2021-06-28", 
                                 "2021-09-07"))
 event_of_interests <- c("Potato planted",
+                        "Potato emerged",
                         "Potato final-harvest",
                         "Wheat sown",
-                        "Wheat ermerged",
+                        "Wheat emerged",
                         "Wheat final-harvest",
                         "Broccoli planted",
                         "Broccoli final-harvest",
@@ -63,13 +67,39 @@ event_of_interests <- c("Potato planted",
 growth_event <- data.table(Date = dates_of_interests, 
                            Events = event_of_interests
                            )[, (c("Crop", "Events")) := tstrsplit(Events, split = "\\s")
-                             ][Events %like% c("ermerg|harvest|plant")]
-## Bring the canopy closure data from ProcessCanopyCover.R file 
-source("02scripts/ProcessCanopyCover.R")
+                             ][Events %like% c("emerged|harvest|plant")]
 growth_stage <- merge.data.table(growth_event, full_canopy, all = TRUE, by = "Date")
 ## Tidy up the stages 
 growth_stage[, ':='(Crop =ifelse(is.na(Crop), as.character(Var2), Crop),
-                    Events = ifelse(is.na(Events), "canopy-closure", Events) )]
+                    Events = ifelse(is.na(Events), "canopy-closure", Events),
+                    mean = ifelse(!is.na(mean), mean, 
+                                  fcase(Events %like% c("planted|harvest"), 0,
+                                        Events %like% c("emerged"),  0.1)))]
+## Interpolate the NDVI
+### figure out the date range
+date_range <- range(growth_stage$Date) 
+### Sequence the period for interpolation 
+full_period <- seq.Date(from = date_range[1], to = date_range[2], by = "day") %>% 
+  data.table(Date = .)
+### Join the full date with the growth stage
+DT <- merge.data.table(full_period, growth_stage[,.(Date, Events, mean, Crop)],
+                       by = "Date", all = TRUE)
+### Update columns that have NAs 
+DT[, ':='(Crop = zoo::na.locf(Crop), # forward fill
+          Events = zoo::na.locf(Events), # forward fill
+          PET_correction = fcase(mean %in% c(0, 0.1), 0.15,
+                                 mean > 0.75, 1))]
+### Need end value for interpolation in each group
+loc_last_in_group <- DT[, .I[.N], by = .(Events, Crop)]
+# loc_first_in_group <- DT[, .I[1], by = .(Events, Crop)]
+### First value in each group will be the end value for the previous group
+### Logic not working since the values not aligned - hard code the last values 
+DT[loc_last_in_group$V1, PET_correction := c(rep(c(0.15,1,1), 3),0.15)] # Fix this 
+
+DT[, PET_correction:= zoo::na.approx(PET_correction, Date, na.rm = FALSE), 
+   by = .(Crop, Events)]
+
+
 # Simple SWD --------------------------------------------------------------
 ## Simple SWD uses a user-defined PAWC (usually the maximum value over a series measurement)
 ## SWD is calculated by subtracting the PAWC by the actual measurement
@@ -125,14 +155,22 @@ joined_input <- merge.data.table(PET_Rain, irrigation,
 update_input <- dcast.data.table(joined_input, 
                                  Date + PET + Rain + Crop ~ Treatment,
                                  value.var = "Irrigation")[, ':='(`NA` = NULL,
-                                                                  Date = as.POSIXct(Date, tz = "NZ"))]
+                                                                  Date = as.Date(Date, tz = "NZ"))]
 # water balance -----------------------------------------------------------
 
 
 WaterBalance <- copy(update_input)[, ':='(Irrigation.1 = ifelse(is.na(Irrigation.1), 0, Irrigation.1),
                                           Irrigation.2 = ifelse(is.na(Irrigation.2), 0, Irrigation.2))
                                    ][, ':='(Precipitation.1 = Rain + Irrigation.1,
-                                            Precipitation.2 = Rain + Irrigation.2)]
+                                            Precipitation.2 = Rain + Irrigation.2)
+                                     ][1, Crop := "Potato"
+                                       ][, Crop := zoo::na.locf(Crop)]
+## Join the growth stage information 
+DT <- merge.data.table(WaterBalance, ,
+                       by = c("Date", "Crop"), all = TRUE)
+DT[.N, Events := "emerging"]
+
+zoo::na.approx(DT$PET_correction)
 ## Define inputs 
 
 # 2. value for Wt0 (water deficit at start time, also in mm)
