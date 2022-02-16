@@ -6,20 +6,32 @@
 # - actual evapotranspiration AET(t) (in mm)
 # - Drainage (in mm)
 
-
-
-###Function input
-# 1. data frame which contains the values for PET (in mm) and Precipitation (Rain+Irrigation in mm). The columns have to be named as "PET" and "Precipitation". 
-#     In the function the data frame is called "weatherdata" but the df can be named differently as long as the columns are named as described above. 
-# 2. value for Wt0 (water deficit at start time, also in mm)
-# 3. value for Ws0 (water deficit top soil at start time, also in mm)
-# 4. value for AWHC (available water holding capacity in mm)
-# 5. value for AWHCs (available water holding capacity for the top soil in mm)
-
-
-
-
-
+#' ScotterWaterbalance
+#'
+#' @param weatherdata 
+#' @param Wt0 
+#' @param Ws0 
+#' @param AWHC 
+#' @param AWHCs 
+#' @param reset 
+#' @param reset_dt 
+#' 
+#' @details 
+#' Function input
+#' 1. data frame which contains the values for PET (in mm) and Precipitation (Rain+Irrigation in mm). The columns have to be named as "PET" and "Precipitation". 
+#'    In the function the data frame is called "weatherdata" but the df can be named differently as long as the columns are named as described above.
+#' 2. value for Wt0 (water deficit at start time, also in mm)
+#' 3. value for Ws0 (water deficit top soil at start time, also in mm)
+#' 4. value for AWHC (available water holding capacity in mm)
+#' 5. value for AWHCs (available water holding capacity for the top soil in mm)
+#' 6. reset. logical. Declare whether or not to reset when new soil water content measurements are available. Default is TRUE. 
+#' 7. reset_dt. a data.frame or data.table contains the observation of soil water content measurements. 
+#'    
+#' @return
+#' @export
+#'
+#' @examples
+#' 
 ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs, 
                                 reset = TRUE, reset_dt = NULL){
   cols <- colnames(weatherdata)
