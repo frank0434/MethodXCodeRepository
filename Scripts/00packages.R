@@ -1,0 +1,8 @@
+library(data.table)
+library(httr)
+library(readxl)
+library(magrittr)
+library(ggplot2)
+library(DBI)
+library(RPostgreSQL)
+library(clifro)
