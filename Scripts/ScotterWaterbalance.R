@@ -14,7 +14,7 @@
 #' @param AWHC 
 #' @param AWHCs 
 #' @param reset 
-#' @param reset_dt 
+#' @param reset_df 
 #' 
 #' @details 
 #' Function input
@@ -25,7 +25,7 @@
 #' 4. value for AWHC (available water holding capacity in mm)
 #' 5. value for AWHCs (available water holding capacity for the top soil in mm)
 #' 6. reset. logical. Declare whether or not to reset when new soil water content measurements are available. Default is TRUE. 
-#' 7. reset_dt. a data.frame or data.table contains the observation of soil water content measurements. 
+#' 7. reset_df. a data.frame or data.table contains the observation of soil water content measurements. 
 #'    
 #' @return
 #' @export
@@ -33,15 +33,15 @@
 #' @examples
 #' 
 ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs, 
-                                reset = TRUE, reset_dt = NULL){
+                                reset = TRUE, reset_df = NULL){
   cols <- colnames(weatherdata)
   stopifnot("Precipitation" %in% cols)
   df_WaterBalance_outputs <- weatherdata[, Date := as.Date(Date)] 
 
   if(!is.null(reset_dt)){
-    dt <- reset_dt[, Date := as.Date(Date)]
-    df_WaterBalance_outputs <- merge.data.table(df_WaterBalance_outputs,
-                                                dt, by = "Date", all.x = TRUE)
+    df$Date <- as.Date(reset_df$Date)
+    df_WaterBalance_outputs <- merge(df_WaterBalance_outputs,
+                                     df, by = "Date", all.x = TRUE)
     
   }
   
