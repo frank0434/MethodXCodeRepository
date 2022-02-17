@@ -2,7 +2,6 @@
 # Aim:
 # Manipulate data 
 
-source("C:/Data/MethodXCodeRepository/Scripts/ScotterWaterbalance.R")
 # required cols 
 cols <- grep("^\\w", colnames(df), value = TRUE)
 
@@ -48,7 +47,7 @@ DT_summariesed$variable <- layers_no[DT_summariesed$variable]
 # The diary data for plant growth stages  ---------------------------------
 
 ## Bring the canopy closure data from ProcessCanopyCover.R file 
-source("02scripts/ProcessCanopyCover.R")
+
 
 ## Pattern search was way to complex, manually pull out the critical dates
 dates_of_interests <- as.Date(c("2019-10-22", "2019-11-12","2020-04-29",
@@ -191,10 +190,10 @@ key <- c("Irrigation", "N_rate")
 PAWC_Profile <- PAWC_depth(DT_summariesed)
 PAWC_top20cm <- PAWC_depth(DT_summariesed, maxdepth = 1)
 SWD_Profile_Wt0 <- SWD_depth(DT_summariesed)[, .SD[1], by = key
-                                             ][order(get(key))]
+                                             ][order(mget(key))]
 SWD_Profile_Ws0 <- SWD_depth(DT_summariesed, maxdepth = 1
                              )[, .SD[1], by = key
-                               ][order(get(key))]
+                               ][order(mget(key))]
 Deficit <- merge.data.table(SWD_Profile_Wt0[,.(Irrigation, N_rate, SWD)],
                             SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
                             by = key, suffixes = c("Wt0","Ws0"))
@@ -240,7 +239,7 @@ update_WaterBalance.2 <- copy(profile_simpleSWD.irr2)[, Crop:= NULL
 PAWC_Profile_60cm <- PAWC_depth(DT_summariesed, maxdepth = 3)
 SWD_Profile_Wt0_60cm <- SWD_depth(DT_summariesed, 
                                   maxdepth = 3)[,.SD[1], by = key
-                                                ][order(get(key))]
+                                                ][order(mget(key))]
 Deficit_60cm <- merge.data.table(SWD_Profile_Wt0_60cm[,.(Irrigation, N_rate, SWD)],
                                  SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
                                  by = key, suffixes = c("Wt0","Ws0"))
@@ -254,73 +253,11 @@ cmd <- paste0("list(", paste(cmd, collapse = ", "),")")
 
 WB_input_60cm[, wbDT := eval(parse(text = cmd))]
 
-wb_list_60cm <- vector("list",length = nrow(WB_input_60cm))
-for(i in 1:nrow(WB_input)){
-  wb_list_60cm[[i]] <-  ScotterWaterbalance(WB_input_60cm$wbDT[[i]], 
-                                       Wt0 = WB_input_60cm$SWDWt0[i], 
-                                       Ws0 = WB_input_60cm$SWDWs0[i], 
-                                       AWHC = WB_input_60cm$AWHc[i],
-                                       AWHCs = WB_input_60cm$AWHcs[i], 
-                                       reset = FALSE)
-  
-}
-WB_input_60cm[, wb:= wb_list_60cm]
-wb_60cm <- WB_input_60cm[,  unlist(wb, recursive = FALSE), by = key]
-
-update_WaterBalance.1_60cm <- dcast.data.table(wb_60cm[Irrigation == 1], Date ~ N_rate, 
-                                               value.var = c("Wt", "Drainage"))
-update_WaterBalance.1_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
-                                           ][update_WaterBalance.1_60cm, on = "Date"]
-
-update_WaterBalance.1_60cm <- copy(update_simpleSWD.irr1)[, Crop:= NULL
-                                                          ][update_WaterBalance.1_60cm, on = "Date"]
-update_WaterBalance.2_60cm <- dcast.data.table(wb_60cm[Irrigation == 2], Date ~ N_rate, 
-                                               value.var =  c("Wt", "Drainage"))
-update_WaterBalance.2_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.2)
-                                           ][update_WaterBalance.2_60cm, on = "Date"]
-update_WaterBalance.2_60cm <- copy(update_simpleSWD.irr2)[, Crop:= NULL
-                                                          ][update_WaterBalance.2_60cm, on = "Date"]
-
-# Resetting values  -------------------------------------------------------
-
+# PET correction  ---------------------------------------------------------
 ## The actual measurements for reset the water balance model 
 reset_df <- SWD_depth(DT_summariesed, maxdepth = 3)
 ## Nested into a list column for easy looping through
 reset_df <- reset_df[, list(realSWD = list(.SD)), by = .(Irrigation, N_rate)]
-
-wb_list_60cm_reset <- vector("list",length = nrow(WB_input_60cm))
-for(i in 1:nrow(WB_input)){
-  wb_list_60cm_reset[[i]] <-  ScotterWaterbalance(WB_input_60cm$wbDT[[i]], 
-                                                  Wt0 = WB_input_60cm$SWDWt0[i], 
-                                                  Ws0 = WB_input_60cm$SWDWs0[i], 
-                                                  AWHC = WB_input_60cm$AWHc[i],
-                                                  AWHCs = WB_input_60cm$AWHcs[i],
-                                                  reset = TRUE,
-                                                  reset_dt = reset_df$realSWD[[i]])
-}
-WB_input_60cm[, wb_reset:= wb_list_60cm_reset]
-wb_60cm_reset <- WB_input_60cm[,  unlist(wb_reset, recursive = FALSE), by = key]
-
-update_WaterBalance.1_60cm_reset <- dcast.data.table(wb_60cm_reset[Irrigation == 1], Date ~ N_rate, 
-                                                     value.var = c("Wt",  "SWD","Drainage"))
-update_WaterBalance.1_60cm_reset <- WaterBalance[, Date := as.Date(Date)
-                                                 ][, .(Date, PET, Precipitation = Precipitation.1)
-                                                   ][update_WaterBalance.1_60cm_reset, on = "Date"]
-
-update_WaterBalance.1_60cm_reset <- copy(update_simpleSWD.irr1)[, ':='(Crop = NULL,
-                                                                       Date = as.Date(Date))
-                                                                ][update_WaterBalance.1_60cm_reset, on = "Date"]
-update_WaterBalance.2_60cm_reset <- dcast.data.table(wb_60cm_reset[Irrigation == 2], Date ~ N_rate, 
-                                                     value.var =  c("Wt", "Drainage"))
-update_WaterBalance.2_60cm_reset <- WaterBalance[, Date := as.Date(Date)
-                                                 ][, .(Date, PET, Precipitation = Precipitation.2)
-                                                   ][update_WaterBalance.2_60cm_reset, on = "Date"]
-update_WaterBalance.2_60cm_reset <- copy(update_simpleSWD.irr2)[, ':='(Crop = NULL,
-                                                                       Date = as.Date(Date))
-                                                                ][update_WaterBalance.2_60cm_reset, on = "Date"]
-
-
-# PET correction  ---------------------------------------------------------
 ## Have commands to assemble a table with nested column
 cmd <- paste0("WaterBalance[,.(Date, PET = PET_correction, Precipitation =  Precipitation.", rep(c(1,2), each = 4), ")]" )
 cmd <- paste0("list(", paste(cmd, collapse = ", "),")")
@@ -336,7 +273,7 @@ for(i in 1:nrow(WB_input)){
                                                          AWHC = WB_input_60cm$AWHc[i],
                                                          AWHCs = WB_input_60cm$AWHcs[i],
                                                          reset = TRUE,
-                                                         reset_dt = reset_df$realSWD[[i]])
+                                                         reset_df = reset_df$realSWD[[i]])
 }
 ## Save the results back and overwrite a column for subsequent processes
 WB_input_60cm[, wb_reset:= wb_list_60cm_reset_PETcor]

@@ -1,8 +1,7 @@
 
 # Aim:
 # Down load the nessary xlsx file 
-source("C:/Data/MethodXCodeRepository/Scripts/packages.R")
-source("C:/Data/MethodXCodeRepository/Scripts/simpleSWD.R")
+
 # source the soil water measurements --------------------------------------
 
 ## Iplant address that has the soil water measurements 
