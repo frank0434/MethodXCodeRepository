@@ -1,0 +1,9 @@
+name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
+.First|function|b4b1281c990688e5|||||||||||||||
+df|stem|d6ba5955142053ec|93fb84c73cb9a244|5d2503b3f3df5984|-1046211958||t19109.9652048067s|8378699d57e09e10|107616|rds|local|vector|||0.36||
+df_irrigation|stem|7e3cfebda6a2ad4e|7ba512b8ad3b6150|5d2503b3f3df5984|623920309||t19109.9651983484s|8896b2833ebe1715|639|rds|local|vector|||0.19||
+download_excel|function|234962d0befa383c|||||||||||||||
+iplant_url|stem|2bffa77a5db906b3|765bd0ef72a53a90|ef46db3751d8e999|1608924472||t19109.9651803018s|5d187c60ba6cbe2f|140|rds|local|vector|||5.61||
+PAWC_depth|function|882657c83994de33|||||||||||||||
+SWD_depth|function|4b231ae507453053|||||||||||||||
+tempfile|stem|de63d4ada6ad5ea8|b5425e3dde26b5c9|439bc79cfdbccef7|446437415||t19109.9651951771s|6d0507ef5b54cc70|121|rds|local|vector|||1.19||
