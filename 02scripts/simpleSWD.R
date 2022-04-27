@@ -15,10 +15,9 @@
 download_excel <- function(url, 
                            username = "cflfcl", 
                            pass =  Sys.getenv("PASSWORD")){
-  tf <- here::here("01raw-data/data.xlsx")
   httr::GET(url, authenticate(user = username, password = pass,
                         type = "ntlm"), 
-      write_disk(tf, overwrite = TRUE))
+      write_disk(tf <- tempfile(fileext = ".xlsx"), overwrite = TRUE))
   return(tf)
   
 }
@@ -63,7 +62,7 @@ SWD_depth <- function(DT, colname = "variable", maxdepth = 8, PAWC = NULL){
   return(DT_profile)
 }
 
-#' Title
+#' PAWC_depth
 #'
 #' @param DT 
 #' @param colname 
@@ -88,4 +87,21 @@ PAWC_depth <- function(DT, colname = "variable", maxdepth = 8){
                        ][, ':='(Irrigation = Irrigation...8,
                                 N_rate = paste0("Nitrogen ", N_rate))]
   return(DT_profile[order(Irrigation, N_rate)])
+}
+
+
+#' change_tz
+#' @description change the excel file time zone to NZ so align with the climate 
+#' @param DT 
+#' @param timezone 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+change_tz <- function(DT, timezone = "NZ"){
+  # HARD STOP if conditions not meet
+  stopifnot(is.data.table(DT), "Date"%in% colnames(DT))
+  DT[, Date := as.Date(Date, tz = "NZ")]
+  return(DT)
 }
