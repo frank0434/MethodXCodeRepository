@@ -1,7 +1,7 @@
 
 # Aim:
 # Manipulate data 
-source("C:/Data/SVS/02scripts/sourceData.R")
+
 source("C:/Data/SVS/02scripts/ScotterWaterbalance.R")
 # required cols 
 cols <- grep("^\\w", colnames(df), value = TRUE)
