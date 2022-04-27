@@ -62,7 +62,7 @@ SWD_depth <- function(DT, colname = "variable", maxdepth = 8, PAWC = NULL){
   return(DT_profile)
 }
 
-#' Title
+#' PAWC_depth
 #'
 #' @param DT 
 #' @param colname 
@@ -87,4 +87,21 @@ PAWC_depth <- function(DT, colname = "variable", maxdepth = 8){
                        ][, ':='(Irrigation = Irrigation...8,
                                 N_rate = paste0("Nitrogen ", N_rate))]
   return(DT_profile[order(Irrigation, N_rate)])
+}
+
+
+#' change_tz
+#' @description change the excel file time zone to NZ so align with the climate 
+#' @param DT 
+#' @param timezone 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+change_tz <- function(DT, timezone = "NZ"){
+  # HARD STOP if conditions not meet
+  stopifnot(is.data.table(DT), !"Date"%in% colnames(DT))
+  DT[, Date := as.Date(Date, tz = "NZ")]
+  return(DT)
 }
