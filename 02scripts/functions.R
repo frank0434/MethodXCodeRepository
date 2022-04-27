@@ -1,0 +1,225 @@
+#' download_excel
+#' @description This function downloads excel file from iplant to a temp file. 
+#'
+#' @param url a string of url. The url needs to be like:
+#' "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/SVS_PotatoOnion_SoilWater.xlsx"
+#'
+#' @details Iplant authenticate type is `ntlm`
+#' 
+#' @return
+#' @export
+#' @import httr
+#'
+#' @examples
+#' 
+download_excel <- function(url, 
+                           username = "cflfcl", 
+                           pass =  Sys.getenv("PASSWORD")){
+  httr::GET(url, authenticate(user = username, password = pass,
+                        type = "ntlm"), 
+      write_disk(tf <- tempfile(fileext = ".xlsx"), overwrite = TRUE))
+  return(tf)
+  
+}
+
+
+#' SWD_depth
+#' @description Calculate the SWD in different profile. 
+#'
+#' @param DT a data.table. Depth is described by incremental layers of measurement
+#' @param maxdepth an integer. The number one use to calculate the max depth.
+#' @param PAWC a numeric value to state how much water the soil can hold.
+#'   Default is NULL - maximum profile water value will be used as PAWC
+#'
+#' @return
+#' @export
+#' @import data.table
+#'
+#' @examples
+SWD_depth <- function(DT, colname = "variable", maxdepth = 8, PAWC = NULL){
+  if(!"SW"%in% colnames(DT)){
+    print("Soil water value must be in column: SW.")
+  }
+  no.oflayers <- length(unique(DT[[colname]]))
+  if(no.oflayers < maxdepth) {
+    cat("You ask too much. I don't have values down to", maxdepth, "\r\n")
+    }
+  DT_profile <- DT[variable %in% seq(1, maxdepth)
+                               ][,.(Profile = sum(SW, na.rm = TRUE)),
+                                 by = .(Crop, Date, Irrigation...8, N_rate)]
+  if(is.null(PAWC)){
+    DT_profile <- DT_profile[, PAWC := max(Profile), by = .(Irrigation...8, N_rate)
+                       ][, ':='(SWD = Profile - PAWC,
+                                Irrigation = Irrigation...8,
+                                N_rate = paste0("Nitrogen ", N_rate),
+                                Date = as.Date(Date, tz = "NZ"))]
+  } else{
+    DT_profile[, ':='(SWD = Profile - PAWC,
+                      Irrigation = Irrigation...8,
+                      N_rate = paste0("Nitrogen ", N_rate),
+                      Date = as.Date(Date, tz = "NZ"))]
+    }
+  return(DT_profile)
+}
+
+#' PAWC_depth
+#'
+#' @param DT 
+#' @param colname 
+#' @param maxdepth 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+PAWC_depth <- function(DT, colname = "variable", maxdepth = 8){
+  if(!"SW"%in% colnames(DT)){
+    print("Soil water value must be in column: SW.")
+  }
+  no.oflayers <- length(unique(DT[[colname]]))
+  if(no.oflayers < maxdepth) {
+    cat("You ask too much. I don't have values down to", maxdepth, "\r\n")
+  }
+  DT_profile <- DT[variable %in% seq(1, maxdepth)
+                   ][,.(Profile = sum(SW, na.rm = TRUE)),
+                     by = .(Crop, Date, Irrigation...8, N_rate)
+                     ][,.(AWHc = max(Profile)), by = .(Irrigation...8, N_rate)
+                       ][, ':='(Irrigation = Irrigation...8,
+                                N_rate = paste0("Nitrogen ", N_rate))]
+  return(DT_profile[order(Irrigation, N_rate)])
+}
+
+
+#' change_tz
+#' @description change the excel file time zone to NZ so align with the climate 
+#' @param DT 
+#' @param timezone 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+change_tz <- function(DT, timezone = "NZ"){
+  # HARD STOP if conditions not meet
+  stopifnot(is.data.table(DT), "Date"%in% colnames(DT))
+  DT[, Date := as.Date(Date, tz = "NZ")]
+  return(DT)
+}
+
+
+### Based on equation from Scotter et. al . (1979) and the modified equations from Scotter and Horne (2016) the function calculates the modelled values for:
+# - soil water deficit (W(t)) for the total planting zone (in mm)
+# - soil water deficits for the top soil Ws(t) (in mm)
+# - the factor Es(t) which describes the maximum amount of water which can be extracted from the top soil due to evapotranspiration(in mm)
+# - the factor Ex (t) which describes the maximum amount of water that the soil in the total planting zone is capable of supplying for evapotranspiration (in mm)
+# - actual evapotranspiration AET(t) (in mm)
+# - Drainage (in mm)
+
+
+
+###Function input
+# 1. data frame which contains the values for PET (in mm) and Precipitation (Rain+Irrigation in mm). The columns have to be named as "PET" and "Precipitation". 
+#     In the function the data frame is called "weatherdata" but the df can be named differently as long as the columns are named as described above. 
+# 2. value for Wt0 (water deficit at start time, also in mm)
+# 3. value for Ws0 (water deficit top soil at start time, also in mm)
+# 4. value for AWHC (available water holding capacity in mm)
+# 5. value for AWHCs (available water holding capacity for the top soil in mm)
+
+
+
+
+
+ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs, 
+                                reset = TRUE, reset_dt = NULL){
+  cols <- colnames(weatherdata)
+  stopifnot("Precipitation" %in% cols)
+  df_WaterBalance_outputs <- weatherdata[, Date := as.Date(Date)] 
+  
+  if(!is.null(reset_dt)){
+    dt <- reset_dt[, Date := as.Date(Date)]
+    df_WaterBalance_outputs <- merge.data.table(df_WaterBalance_outputs,
+                                                dt, by = "Date", all.x = TRUE)
+    
+  }
+  
+  
+  df_WaterBalance_outputs$Ws <- Ws0 
+  df_WaterBalance_outputs$Es <- 0 
+  df_WaterBalance_outputs$Wt <- Wt0  
+  df_WaterBalance_outputs$RAW <- 0  
+  df_WaterBalance_outputs$Ex <- 0  
+  df_WaterBalance_outputs$AET <- 0 
+  df_WaterBalance_outputs$Drainage <- 0
+  
+  n <- nrow(weatherdata)
+  
+  
+  for (t in 2:n){
+    if(isTRUE(reset)){
+      ## RESET STUFF 
+      df_WaterBalance_outputs$Es[t] =   min(weatherdata$PET[t], (AWHCs+df_WaterBalance_outputs$Ws[t-1]))
+      
+      df_WaterBalance_outputs$Ws[t] =   min(0, (df_WaterBalance_outputs$Ws[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$Es[t]))
+      
+      df_WaterBalance_outputs$RAW[t]= (0.0073*(weatherdata$PET[t]*(AWHC+df_WaterBalance_outputs$Wt[t-1])))
+      
+      df_WaterBalance_outputs$Ex[t]= max(df_WaterBalance_outputs$Es[t], (weatherdata$PET[t]*((AWHC+df_WaterBalance_outputs$Wt[t-1])/(AWHC-df_WaterBalance_outputs$RAW[t]))))
+      
+      df_WaterBalance_outputs$AET[t]=min(weatherdata$PET[t],df_WaterBalance_outputs$Ex[t])
+      
+      df_WaterBalance_outputs$Wt[t]= min(0, ifelse(!is.na(df_WaterBalance_outputs$SWD[t]), df_WaterBalance_outputs$SWD[t],
+                                                   (df_WaterBalance_outputs$Wt[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$AET[t])))
+      
+      df_WaterBalance_outputs$Drainage[t]=max(0,df_WaterBalance_outputs$Wt[t]+df_WaterBalance_outputs$Wt[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$AET[t])
+      
+      
+    } else {
+      
+      
+      df_WaterBalance_outputs$Es[t] =   min(weatherdata$PET[t], (AWHCs+df_WaterBalance_outputs$Ws[t-1]))
+      
+      df_WaterBalance_outputs$Ws[t] =   min(0, (df_WaterBalance_outputs$Ws[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$Es[t]))
+      
+      df_WaterBalance_outputs$RAW[t]= (0.0073*(weatherdata$PET[t]*(AWHC+df_WaterBalance_outputs$Wt[t-1])))
+      
+      df_WaterBalance_outputs$Ex[t]= max(df_WaterBalance_outputs$Es[t], (weatherdata$PET[t]*((AWHC+df_WaterBalance_outputs$Wt[t-1])/(AWHC-df_WaterBalance_outputs$RAW[t]))))
+      
+      df_WaterBalance_outputs$AET[t]=min(weatherdata$PET[t],df_WaterBalance_outputs$Ex[t])
+      
+      df_WaterBalance_outputs$Wt[t]= min(0, (df_WaterBalance_outputs$Wt[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$AET[t]))
+      
+      df_WaterBalance_outputs$Drainage[t]=max(0,df_WaterBalance_outputs$Wt[t]+df_WaterBalance_outputs$Wt[t-1]+weatherdata$Precipitation[t]-df_WaterBalance_outputs$AET[t])
+      
+    }  
+  }
+  
+  return(df_WaterBalance_outputs)  
+  
+}
+
+
+
+#' lagfun
+#' @description use with lappy to calculate the lag 1 difference
+#' @param x 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+lagfun <- function(x){
+  # Split the vector into different groups 
+  vv <- split(x, cumsum(!is.na(x)))
+  # Replace NA with the first non NA value
+  vv <- sapply(vv, function(x) {
+    sapply(x,function(xx){
+      ifelse(is.na(xx), x[1], xx)
+    })
+  })
+  # Unlist the vector
+  vv <- unlist(vv)
+  # Calculate the lag one difference 
+  x <- c(0, diff(na.omit(vv), lag = 1))
+}
+
