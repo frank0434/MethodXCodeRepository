@@ -68,5 +68,60 @@ list(
              as.data.table(cf.datalist[[2]])[, Date := as.Date(`Date(local)`, 
                                                                format = "%Y-%m-%d", tz = "NZ")
                                              ][, .(Date, Rain = `Amount(mm)`)]
-             )
+             ),
+
+# calculation  ------------------------------------------------------------
+  tar_target(cols,
+             grep("^\\w", colnames(df), value = TRUE)
+             ),
+  tar_target(DT, 
+             df[!is.na(Crop) & !is.na(Date), cols, with = FALSE]
+             ),
+  tar_target(colnames, # Constant
+             colnames(DT)
+             ),
+  tar_target(value_var,
+             grep("VWC.+", colnames, value = TRUE)
+             ),
+  # Cautious!!!!! SW is in percentage
+  tar_target(thickness, # constant
+             2),
+  tar_target(id_var,
+             c("Crop", "Date", "Field_Plot_No", "Plot_No","Irrigation...8", 
+               "N_rate")),
+  # Missing or erroneous values will be removed by join the metadata which has 
+  # the information about bad values
+  tar_target(metadata,
+             melt.data.table(df_error, measure = patterns("VWC_*"))
+             ),
+  ## Remove comment column and filter down which value was missing 
+  tar_target(NAcells,
+             metadata[, Comments:=NULL][value == 1]),
+  ## Get the raw measurements into long format 
+  tar_target(DT_long, 
+             melt(DT, id.vars = id_var, measure.vars = value_var, 
+                  variable.factor = FALSE)[, value := as.numeric(value)]),
+  ## merge the raw with manual correction table
+  tar_target(DTwithmeta_withNA, 
+             merge.data.table(DT_long, NAcells, 
+                              by.x = c("Date", "Field_Plot_No", "variable"),
+                              by.y = c("Date", "Plot", "variable"), 
+                              all.x = TRUE, suffixes = c("", ".y"))
+             ),
+  ## remove the bad ones
+  tar_target(DTwithmeta,  
+             DTwithmeta_withNA[is.na(value.y)
+                               ][, value.y := NULL]),
+  # value is doubled to get the mm unit, `thickness` holds the converter. 
+  tar_target(DT_summariesed, 
+             DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = TRUE)), 
+                        by = .(Crop, Date, variable, Irrigation...8, N_rate)]
+             ), 
+  # Transfer layer information to integer layers
+  tar_target(layers_name,
+             unique(DT_summariesed$variable)), 
+  ## Hard code layer 
+  tar_target(layers_no, c(1, 6, 7, 8, 2, 3, 4,5))
+
+
 )
