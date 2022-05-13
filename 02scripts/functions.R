@@ -1,5 +1,26 @@
 
 
+
+#' wb_correction
+#' @description merge wb with canopy and pet correction
+#' @param WaterBalance_correction 
+#' @param DT_canopy_correction 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+wb_correction <- function(WaterBalance_correction, DT_canopy_correction){
+  WaterBalance <- merge.data.table(WaterBalance_correction, 
+                                   DT_canopy_correction[,.(Date, Crop, PET_correction)],
+                                   by = c("Date", "Crop"), all.x = TRUE)
+  ## There are fallows and long harvest period for some crops, correct to 0.15
+  WaterBalance[, PET_correction := ifelse(is.na(PET_correction), 0.15, PET_correction)
+               ][, PET_correction := PET * PET_correction] # calculate actual PET
+  return(WaterBalance)
+
+}
+
 #' canopy_cover
 #' @description manually fill the canopy coverage.
 #' @param DT 
