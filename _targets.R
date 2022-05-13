@@ -121,7 +121,74 @@ list(
   tar_target(layers_no, c(1, 6, 7, 8, 2, 3, 4,5)),
   tar_target(DT_summariesed,
              order_layer(DT_summariesed = DT_summariesed_no_order,
-                        layers_no = layers_no, layers_name = layers_name))
+                        layers_no = layers_no, layers_name = layers_name)
+             ),
+  ## Pattern search was way to complex, manually pull out the critical dates
+  tar_target(dates_of_interests,
+             as.Date(c("2019-10-22", "2019-11-12","2020-04-29",
+                       "2020-05-19", "2020-06-03", "2021-01-21",
+                       "2021-03-03", "2021-06-28", 
+                       "2021-09-07"))
+             ),
+  tar_target(event_of_interests, 
+             c("Potato planted",
+               "Potato emerged",
+               "Potato final-harvest",
+               "Wheat sown",
+               "Wheat emerged",
+               "Wheat final-harvest",
+               "Broccoli planted",
+               "Broccoli final-harvest",
+               "Onion sown")),
+  tar_target(growth_event,
+             data.table(Date = dates_of_interests, 
+                        Events = event_of_interests
+                        )[, (c("Crop", "Events")) := tstrsplit(Events, split = "\\s")
+                          ][Events %like% c("emerged|harvest|plant")]
+             ), 
+  tar_target(growth_stage_withCanopy, 
+             merge.data.table(growth_event, full_canopy, all = TRUE, 
+                              by = "Date")
+             ),
+  ## Tidy up the stages 
+  tar_target(growth_stage,
+             growth_stage_withCanopy[, ':='(Crop =ifelse(is.na(Crop), as.character(Var2), Crop),
+                                            Events = ifelse(is.na(Events), "canopy-closure", Events),
+                                            mean = ifelse(!is.na(mean), mean, 
+                                                          fcase(Events %like% c("planted|harvest"), 0,
+                                                                Events %like% c("emerged"),  0.1)))]
+             ),
+  ## Interpolate the NDVI
+  ### figure out the date range
+  tar_target(date_range, 
+             range(growth_stage$Date)
+             ),
+  ### Sequence the period for interpolation 
+  tar_target(full_period, 
+             seq.Date(from = date_range[1], to = date_range[2], by = "day") %>% 
+               data.table(Date = .)
+             )
+  # ### Join the full date with the growth stage
+  # tar_target(DT <- merge.data.table(full_period, growth_stage[,.(Date, Events, mean, Crop)],
+  #                      by = "Date", all = TRUE)
+  # ### Update columns that have NAs 
+  # DT[, ':='(Crop = zoo::na.locf(Crop), # forward fill
+  #           Events = zoo::na.locf(Events), # forward fill
+  #           PET_correction = fcase(mean %in% c(0, 0.1), 0.15,
+  #                                  mean > 0.75, 1))]
+  # ### Need end value for interpolation in each group
+  # loc_last_in_group <- DT[, .I[.N], by = .(Events, Crop)]
+  # # loc_first_in_group <- DT[, .I[1], by = .(Events, Crop)]
+  # ### First value in each group will be the end value for the previous group
+  # ### Logic not working since the values not aligned - hard code the last values 
+  # DT[loc_last_in_group$V1, PET_correction := c(rep(c(0.15,1,1), 3),0.15)] # Fix this 
+  # 
+  # ## update the interpolation 
+  # DT[, PET_correction:= zoo::na.approx(PET_correction, Date, na.rm = FALSE), 
+  #    by = .(Crop, Events)]
+  # 
+
+
 
 
 )
