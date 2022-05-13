@@ -110,15 +110,18 @@ list(
              DTwithmeta_withNA[is.na(value.y)
                                ][, value.y := NULL]),
   # value is doubled to get the mm unit, `thickness` holds the converter.
-  tar_target(DT_summariesed,
+  tar_target(DT_summariesed_no_order,
              DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = TRUE)),
                         by = .(Crop, Date, variable, Irrigation...8, N_rate)]
              ),
   # Transfer layer information to integer layers
   tar_target(layers_name,
-             unique(DT_summariesed$variable)),
+             unique(DT_summariesed_no_order$variable)),
   ## Hard code layer
-  tar_target(layers_no, c(1, 6, 7, 8, 2, 3, 4,5))
+  tar_target(layers_no, c(1, 6, 7, 8, 2, 3, 4,5)),
+  tar_target(DT_summariesed,
+             order_layer(DT_summariesed = DT_summariesed_no_order,
+                        layers_no = layers_no, layers_name = layers_name))
 
 
 )
