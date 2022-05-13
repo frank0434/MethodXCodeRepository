@@ -1,6 +1,60 @@
 
 
 
+
+wb_daily <- function(WaterBalance,
+                     DT_profile_simplem, 
+                     DT_summariesed){
+  ## Define inputs 
+  
+  # 2. value for Wt0 (water deficit at start time, also in mm)
+  # 3. value for Ws0 (water deficit top soil at start time, also in mm)
+  # 4. value for AWHC (available water holding capacity in mm)
+  # 5. value for AWHCs (available water holding capacity for the top soil in mm)
+  Ws0 <- NULL # Profile water deficit
+  Wt0 <- NULL # Surface layer water deficit 
+  AWHC <- max(DT_profile_simple$Profile)
+  AWHC_60cm <- AWHC/8*3
+  AWHCs <- AWHC/8 # hypothetical values - super close to the observed value
+  # DT_summariesed[variable ==1 ]$SW %>% max()
+  
+  ## Prepare the critical input values 
+  key <- c("Irrigation", "N_rate")
+  PAWC_Profile <- PAWC_depth(DT_summariesed)
+  PAWC_top20cm <- PAWC_depth(DT_summariesed, maxdepth = 1)
+  SWD_Profile_Wt0 <- SWD_depth(DT_summariesed)[, .SD[1], by = key
+                                               ][order(get(key))]
+  SWD_Profile_Ws0 <- SWD_depth(DT_summariesed, maxdepth = 1)[, .SD[1], 
+                                                             by = key
+                                                             ][order(get(key))]
+  Deficit <- merge.data.table(SWD_Profile_Wt0[,.(Irrigation, N_rate, SWD)],
+                              SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
+                              by = key, suffixes = c("Wt0","Ws0"))
+  AWHC <- merge.data.table(PAWC_Profile[,.(Irrigation, N_rate, AWHc)],
+                           PAWC_top20cm[,.(Irrigation, N_rate, AWHc)],
+                           by = key, suffixes = c("","s"))
+  WB_input <- merge.data.table(Deficit, AWHC, by = key)
+  ## Subset the water balance input data frame
+  cmd <- paste0("WaterBalance[,.(Date, PET, Precipitation =  Precipitation.", rep(c(1,2), each = 4), ")]" )
+  cmd <- paste0("list(", paste(cmd, collapse = ", "),")")
+  
+  WB_input[, wbDT := eval(parse(text = cmd))]
+  
+  wb_list <- vector("list",length = nrow(WB_input))
+  for(i in 1:nrow(WB_input)){
+    wb_list[[i]] <-  ScotterWaterbalance(WB_input$wbDT[[i]], 
+                                         Wt0 = WB_input$SWDWt0[i], 
+                                         Ws0 = WB_input$SWDWs0[i], 
+                                         AWHC = WB_input$AWHc[i],
+                                         AWHCs = WB_input$AWHcs[i], 
+                                         reset = FALSE)
+    
+  }
+  WB_input[, wb:= wb_list]
+  wb <- WB_input[,  unlist(wb, recursive = FALSE), by = key]
+  return(wb)
+}
+
 #' wb_correction
 #' @description merge wb with canopy and pet correction
 #' @param WaterBalance_correction 
