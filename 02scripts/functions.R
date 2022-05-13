@@ -1,4 +1,32 @@
 
+
+#' canopy_cover
+#' @description manually fill the canopy coverage.
+#' @param DT 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+canopy_cover <- function(DT){
+   
+  DT <- DT[, ':='(Crop = zoo::na.locf(Crop), # forward fill
+                  Events = zoo::na.locf(Events), # forward fill
+                  PET_correction = fcase(mean %in% c(0, 0.1), 0.15,
+                                         mean > 0.75, 1))]
+  ### Need end value for interpolation in each group
+  loc_last_in_group <- DT[, .I[.N], by = .(Events, Crop)]
+  ### First value in each group will be the end value for the previous group
+  ### Logic not working since the values not aligned - hard code the last values 
+  DT[loc_last_in_group$V1, PET_correction := c(rep(c(0.15,1,1), 3),0.15)] # Fix this 
+  ## update the interpolation 
+  DT[, PET_correction:= zoo::na.approx(PET_correction, Date, na.rm = FALSE), 
+     by = .(Crop, Events)]
+  
+  return(DT)
+  }
+
+
 #' order_layer
 #' @description hard code re-order. becareful about the layer number and name. 
 #' 
