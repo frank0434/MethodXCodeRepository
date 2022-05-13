@@ -3,6 +3,7 @@ name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iterat
 cf.datalist|stem|92924df9d20a141e|8decb123dbb513bc|e877d7cb986a749d|-970716536||t19109.99197434s|78bc9b56a8880cb8|15682|rds|local|vector|||2.71||
 change_tz|function|047cdb8e7663d4e3|||||||||||||||
 cols|stem|2c605733d0bd9ec2|5ed28120ba17b7e2|4a50a1c5d289c562|-1668097849||t19124.9818137008s|39158163dc19e824|194|rds|local|vector|||0||
+dates_of_interests|stem|04a92f146e9f6be7|9ced459682bf1469|0e4df9e1e46e27e0|429389773||t19125.1306235801s|6fca0b2ed00222a9|115|rds|local|vector|||6.45||
 df|stem|8d40b0fe324fd622|664929f89c3ca5a2|3e7fef1f46d3d028|-1046211958||t19109.9919397835s|9501f2c000103676|107391|rds|local|vector|||0.02||
 df_error|stem|a81e1f1098adb6cf|fa451c23e40d17f5|dfdf4e78628f33c8|1581410555||t19109.9919352691s|a7e1dff870b92354|543|rds|local|vector|||0.03||
 df_irrigation|stem|f6587554401210b1|db1cee3fbe049853|9a6e16004f4f336b|623920309||t19109.9919368083s|aadb529ce9fe9359|533|rds|local|vector|||0.03||
@@ -16,6 +17,9 @@ DT_summariesed|stem|c219c1b53e3991ad|e63030d2cdbd3190|73d7a8dfd5737bbb|-64612311
 DT_summariesed_no_order|stem|23d0f6ae74ba221c|e4067a55801a8c77|60c510eec295348a|1775465746||t19125.0023812069s|3c7ee96c799223fc|17165|rds|local|vector|||0.01||
 DTwithmeta|stem|a27bbc93c2909e51|d9f9d6a9807d39f2|87fcdfa478710356|-252155822||t19124.9991677365s|d59f63fa8c94851c|61305|rds|local|vector|||0||
 DTwithmeta_withNA|stem|6e3da92e23bec0de|49b202e81198416c|75337d66f5177355|518071612||t19124.9991661539s|688dc3a07c04733b|62008|rds|local|vector|||0.01||
+event_of_interests|stem|31a569d0932b7923|5315d3e91762c64c|a3dad144c40657ed|346509034||t19125.1306247722s|ca3c3fc26a81f481|142|rds|local|vector|||0||
+growth_event|stem|0a9365326a90816f|c1e6c23d01748b02|cb83a1b3e90da669|-1922025700||t19125.1306271103s|f20cd2b8fcfedc44|285|rds|local|vector|||0.03||
+growth_stage_withCanopy|stem||0f54dd90dfe4d0c5|5dfc7310e99f93ef|274322462||t19125.1306294252s||0|rds|local|vector|||0.02||object full_canopy not found
 id_var|stem|cfd0040399d8ce6c|e6437b47142e0d22|a3dad144c40657ed|-1375118945||t19124.998883378s|1990819d57dec260|107|rds|local|vector|||1.81||
 iplant_url|stem|2bffa77a5db906b3|765bd0ef72a53a90|ef46db3751d8e999|1608924472||t19109.9651803018s|5d187c60ba6cbe2f|140|rds|local|vector|||5.61||
 lagfun|function|7cb234f2c9a5a860|||||||||||||||

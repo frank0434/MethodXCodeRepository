@@ -1,5 +1,5 @@
 source("C:/Data/SVS/02scripts/packages.R")
-source("C:/Data/SVS/02scripts/simpleSWD.R")
+source("C:/Data/SVS/02scripts/functions.R")
 ## Too much effort to build a webscraper assessmble file names to extrat
 base_url <- "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/"
 crops <- c("Onion", "Onions","Wheat", "Broccoli","Potato")

@@ -1,5 +1,6 @@
 library(targets)
 source(here::here("02scripts/functions.R"))
+source(here::here("02scripts/ProcessCanopyCover.R"))
 targets::tar_option_set(packages = c("data.table","httr","readxl","magrittr",
                                      "DBI","RPostgreSQL","clifro","here"))
 
