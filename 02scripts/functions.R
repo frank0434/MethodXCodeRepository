@@ -1,3 +1,23 @@
+
+#' order_layer
+#' @description hard code re-order. becareful about the layer number and name. 
+#' 
+#' @param DT_summariesed 
+#' @param layers_no 
+#' @param layers_name 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+order_layer <- function(DT_summariesed, layers_no, layers_name){
+  names(layers_no) <- layers_name
+  DT_summariesed$variable <- layers_no[DT_summariesed$variable]
+  return(DT_summariesed)
+}
+
+
+
 #' download_excel
 #' @description This function downloads excel file from iplant to a temp file. 
 #'
