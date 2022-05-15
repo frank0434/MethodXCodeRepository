@@ -9,6 +9,7 @@
 #'
 #' @return
 #' @export
+#' @import data.table
 #'
 #' @examples
 wb_simple <- function(DT_summarised){
@@ -19,7 +20,7 @@ wb_simple <- function(DT_summarised){
     DT_profile_simple_60cm <- SWD_depth(DT_summarised, maxdepth = i)
     l[[i]] <- DT_profile_simple_60cm[, profile := Profiles[i]]
   }
-  DT_profile_simple_60cm <- rbindlist(l)
+  DT_profile_simple_60cm <- data.table::rbindlist(l)
   return(DT_profile_simple_60cm)
 }
 
@@ -30,7 +31,7 @@ wb_simple <- function(DT_summarised){
 #'
 #' @param WaterBalance 
 #' @param DT_profile_simplem 
-#' @param DT_summariesed 
+#' @param DT_summarised 
 #'
 #' @return
 #' @export
@@ -38,7 +39,7 @@ wb_simple <- function(DT_summarised){
 #' @examples
 wb_daily <- function(WaterBalance,
                      DT_profile_simplem, 
-                     DT_summariesed){
+                     DT_summarised){
   ## Define inputs 
   
   # 2. value for Wt0 (water deficit at start time, also in mm)
@@ -50,15 +51,15 @@ wb_daily <- function(WaterBalance,
   AWHC <- max(DT_profile_simple$Profile)
   AWHC_60cm <- AWHC/8*3
   AWHCs <- AWHC/8 # hypothetical values - super close to the observed value
-  # DT_summariesed[variable ==1 ]$SW %>% max()
+  # DT_summarised[variable ==1 ]$SW %>% max()
   
   ## Prepare the critical input values 
   key <- c("Irrigation", "N_rate")
-  PAWC_Profile <- PAWC_depth(DT_summariesed)
-  PAWC_top20cm <- PAWC_depth(DT_summariesed, maxdepth = 1)
-  SWD_Profile_Wt0 <- SWD_depth(DT_summariesed)[, .SD[1], by = key
+  PAWC_Profile <- PAWC_depth(DT_summarised)
+  PAWC_top20cm <- PAWC_depth(DT_summarised, maxdepth = 1)
+  SWD_Profile_Wt0 <- SWD_depth(DT_summarised)[, .SD[1], by = key
                                                ][order(get(key))]
-  SWD_Profile_Ws0 <- SWD_depth(DT_summariesed, maxdepth = 1)[, .SD[1], 
+  SWD_Profile_Ws0 <- SWD_depth(DT_summarised, maxdepth = 1)[, .SD[1], 
                                                              by = key
                                                              ][order(get(key))]
   Deficit <- merge.data.table(SWD_Profile_Wt0[,.(Irrigation, N_rate, SWD)],
@@ -139,7 +140,7 @@ canopy_cover <- function(DT){
 #' order_layer
 #' @description hard code re-order. becareful about the layer number and name. 
 #' 
-#' @param DT_summariesed 
+#' @param DT_summarised 
 #' @param layers_no 
 #' @param layers_name 
 #'
@@ -147,10 +148,10 @@ canopy_cover <- function(DT){
 #' @export
 #'
 #' @examples
-order_layer <- function(DT_summariesed, layers_no, layers_name){
+order_layer <- function(DT_summarised, layers_no, layers_name){
   names(layers_no) <- layers_name
-  DT_summariesed$variable <- layers_no[DT_summariesed$variable]
-  return(DT_summariesed)
+  DT_summarised$variable <- layers_no[DT_summarised$variable]
+  return(DT_summarised)
 }
 
 
