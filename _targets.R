@@ -249,22 +249,17 @@ list(
   ## Join the growth stage information 
   tar_target(WaterBalance,
              wb_correction(WaterBalance_correction,DT_canopy_correction)
+             ),
+  tar_target(wb, 
+             wb_daily(WaterBalance, DT_profile_simple, DT_summarised)
+             ),
+  tar_target(update_WaterBalance.1,
+             join_wb(wb, WaterBalance, profile_simpleSWD.irr1)
+             ),
+  tar_target(update_WaterBalance.2,
+             join_wb(wb, WaterBalance, profile_simpleSWD.irr1)
              )
-
-# update_WaterBalance.1 <- dcast.data.table(wb[Irrigation == 1], Date ~ N_rate, 
-#                                           value.var = c("Wt", "Drainage"))
-# update_WaterBalance.1 <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
-# ][update_WaterBalance.1, on = "Date"]
-# 
-# update_WaterBalance.1 <- copy(profile_simpleSWD.irr1)[, Crop:= NULL
-# ][update_WaterBalance.1, on = "Date"]
-# update_WaterBalance.2 <- dcast.data.table(wb[Irrigation == 2], Date ~ N_rate, 
-#                                           value.var =  c("Wt", "Drainage"))
-# update_WaterBalance.2 <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.2)
-# ][update_WaterBalance.2, on = "Date"]
-# update_WaterBalance.2 <- copy(profile_simpleSWD.irr2)[, Crop:= NULL
-# ][update_WaterBalance.2, on = "Date"]
-# 
+ 
 # # 60cm --------------------------------------------------------------------
 # 
 # PAWC_Profile_60cm <- PAWC_depth(DT_summarised, maxdepth = 3)

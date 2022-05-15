@@ -63,7 +63,7 @@ wb_simple <- function(DT_summarised){
 #'
 #' @examples
 wb_daily <- function(WaterBalance,
-                     DT_profile_simplem, 
+                     DT_profile_simple, 
                      DT_summarised){
   ## Define inputs 
   
