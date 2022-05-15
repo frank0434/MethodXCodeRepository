@@ -195,31 +195,13 @@ list(
   tar_target(DT_profile_simple,
              SWD_depth(DT_summarised)
              ),
-  tar_target(profile_simpleSWD.irr1,
-             dcast.data.table(DT_profile_simple[Irrigation == 1],
-                              Crop + Date ~ N_rate, value.var = "SWD")
-             ),
-  tar_target(profile_simpleSWD.irr2,
-             dcast.data.table(DT_profile_simple[Irrigation == 2],
-                              Crop + Date ~ N_rate, value.var = "SWD")
-             ),
+
   # WATER BALANCE -----------------------------------------------------------
   # irrigation  -------------------------------------------------------------
   tar_target(irrigation,
              melt.data.table(df_irrigation, 
                              id.vars = c("Crop", "Date"), value.name = "Irrigation",
                              variable.factor = FALSE, variable.name = "Treatment" )
-             ),
-  # # 1.8 m profile ---------------------------------------------------------
-  tar_target(update_irr1,
-             dcast.data.table(DT_profile_simple[Irrigation == 1],
-                              Crop + Date ~ N_rate,
-                              value.var = "Profile")
-             ),
-  tar_target(update_irr2, 
-             dcast.data.table(DT_profile_simple[Irrigation == 2],
-                              Crop + Date ~ N_rate,
-                              value.var = "Profile")
              ),
   # climate -----------------------------------------------------------------
   tar_target(PET_Rain, 
@@ -250,11 +232,6 @@ list(
   tar_target(WaterBalance,
              wb_correction(WaterBalance_correction,DT_canopy_correction)
              ),
-  tar_target(wb, 
-             wb_daily(WaterBalance, DT_profile_simple, DT_summarised, 
-                      maxdepth = 1)
-             ),
-
   # Resetting values  -------------------------------------------------------
   ## The actual measurements for reset the water balance model    
   tar_target(reset_df,
