@@ -55,8 +55,10 @@ wb_simple <- function(DT_summarised){
 #' Title
 #'
 #' @param WaterBalance 
-#' @param DT_profile_simplem 
 #' @param DT_summarised 
+#' @param DT_profile_simple 
+#' @param maxdepth 
+#' @param reset 
 #'
 #' @return
 #' @export
@@ -64,7 +66,8 @@ wb_simple <- function(DT_summarised){
 #' @examples
 wb_daily <- function(WaterBalance,
                      DT_profile_simple, 
-                     DT_summarised,maxdepth = 1){
+                     DT_summarised,
+                     maxdepth = 1, reset = FALSE){
   ## Define inputs 
   
   # 2. value for Wt0 (water deficit at start time, also in mm)
