@@ -1,5 +1,30 @@
 
 
+
+
+#' join_wb
+#'
+#' @param wb 
+#' @param WaterBalance 
+#' @param profile_simpleSWD.irr 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+join_wb <- function(wb, WaterBalance, profile_simpleSWD.irr){
+  update_WaterBalance.1 <- dcast.data.table(wb[Irrigation == 1], Date ~ N_rate,
+                                            value.var = c("Wt", "Drainage"))
+  update_WaterBalance.1 <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
+                                        ][update_WaterBalance.1, on = "Date"]
+
+  update_WaterBalance.1 <- copy(profile_simpleSWD.irr)[, Crop:= NULL
+                                                        ][update_WaterBalance.1, on = "Date"]
+  return(update_WaterBalance.1)
+  
+}
+
+
 #' wb_simple
 #'  @description Simple SWD uses a user-defined PAWC (usually the maximum value
 #over a series measurement) # SWD is calculated by subtracting the PAWC by the
