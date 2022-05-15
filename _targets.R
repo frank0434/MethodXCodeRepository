@@ -111,17 +111,17 @@ list(
              DTwithmeta_withNA[is.na(value.y)
                                ][, value.y := NULL]),
   # value is doubled to get the mm unit, `thickness` holds the converter.
-  tar_target(DT_summariesed_no_order,
+  tar_target(DT_summarised_no_order,
              DTwithmeta[, .(SW = mean(as.numeric(value)*thickness, na.rm = TRUE)),
                         by = .(Crop, Date, variable, Irrigation...8, N_rate)]
              ),
   # Transfer layer information to integer layers
   tar_target(layers_name,
-             unique(DT_summariesed_no_order$variable)),
+             unique(DT_summarised_no_order$variable)),
   ## Hard code layer
   tar_target(layers_no, c(1, 6, 7, 8, 2, 3, 4,5)),
-  tar_target(DT_summariesed,
-             order_layer(DT_summariesed = DT_summariesed_no_order,
+  tar_target(DT_summarised,
+             order_layer(DT_summarised = DT_summarised_no_order,
                         layers_no = layers_no, layers_name = layers_name)
              ),
   ## Pattern search was way to complex, manually pull out the critical dates
@@ -181,8 +181,9 @@ list(
              ),
   
   # Simple SWD --------------------------------------------------------------
-  ## Simple SWD uses a user-defined PAWC (usually the maximum value over a series measurement)
-  ## SWD is calculated by subtracting the PAWC by the actual measurement
+  tar_target(DT_profile_simple_60cm,
+             wb_simple(DT_summarised)
+             ),
   tar_target(update_simpleSWD.irr1,
              dcast.data.table(DT_profile_simple_60cm[Irrigation == 1],
                               Crop + Date  + profile~ N_rate, value.var = "SWD")
@@ -192,7 +193,7 @@ list(
                               Crop + Date  + profile~ N_rate, value.var = "SWD")
              ),
   tar_target(DT_profile_simple,
-             SWD_depth(DT_summariesed)
+             SWD_depth(DT_summarised)
              ),
   tar_target(profile_simpleSWD.irr1,
              dcast.data.table(DT_profile_simple[Irrigation == 1],
@@ -266,8 +267,8 @@ list(
 # 
 # # 60cm --------------------------------------------------------------------
 # 
-# PAWC_Profile_60cm <- PAWC_depth(DT_summariesed, maxdepth = 3)
-# SWD_Profile_Wt0_60cm <- SWD_depth(DT_summariesed, 
+# PAWC_Profile_60cm <- PAWC_depth(DT_summarised, maxdepth = 3)
+# SWD_Profile_Wt0_60cm <- SWD_depth(DT_summarised, 
 #                                   maxdepth = 3)[,.SD[1], by = key
 #                                   ][order(get(key))]
 # Deficit_60cm <- merge.data.table(SWD_Profile_Wt0_60cm[,.(Irrigation, N_rate, SWD)],
@@ -313,7 +314,7 @@ list(
 # # Resetting values  -------------------------------------------------------
 # 
 # ## The actual measurements for reset the water balance model 
-# reset_df <- SWD_depth(DT_summariesed, maxdepth = 3)
+# reset_df <- SWD_depth(DT_summarised, maxdepth = 3)
 # ## Nested into a list column for easy looping through
 # reset_df <- reset_df[, list(realSWD = list(.SD)), by = .(Irrigation, N_rate)]
 # 
