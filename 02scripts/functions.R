@@ -1,7 +1,41 @@
 
 
+#' wb_simple
+#'  @description Simple SWD uses a user-defined PAWC (usually the maximum value
+#over a series measurement) # SWD is calculated by subtracting the PAWC by the
+#actual measurement
+#'
+#' @param DT_summarised 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+wb_simple <- function(DT_summarised){
+  ## Empty list to store things
+  l <- vector("list", length = 3)
+  Profiles <- paste(c(20, 40, 60), "cm")
+  for (i in seq_len(3)){
+    DT_profile_simple_60cm <- SWD_depth(DT_summarised, maxdepth = i)
+    l[[i]] <- DT_profile_simple_60cm[, profile := Profiles[i]]
+  }
+  DT_profile_simple_60cm <- rbindlist(l)
+  return(DT_profile_simple_60cm)
+}
 
 
+
+
+#' Title
+#'
+#' @param WaterBalance 
+#' @param DT_profile_simplem 
+#' @param DT_summariesed 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 wb_daily <- function(WaterBalance,
                      DT_profile_simplem, 
                      DT_summariesed){
