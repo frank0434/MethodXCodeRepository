@@ -249,5 +249,14 @@ list(
              ),
   tar_target(update_WaterBalance.2_60cm_reset_PETcor,
              join_wb(wb_60cm_reset_PETcor, WaterBalance, update_simpleSWD.irr2)
-             )
+             ),
+  tar_target(conns_upload,
+             connect_upload(host = "database.powerplant.pfr.co.nz",
+                            dbname  = Sys.getenv("USERNAME"),
+                            user = Sys.getenv("USERNAME"),
+                            password = Sys.getenv("PASSWORD"),
+                            waitingForUpdate = c("update_WaterBalance.1_60cm_reset_PETcor",
+                                                 "update_WaterBalance.2_60cm_reset_PETcor"))
+    
+  )
 )

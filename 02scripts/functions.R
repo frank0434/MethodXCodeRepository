@@ -1,5 +1,37 @@
 
 
+# connect to database -----------------------------------------------------
+
+#' connect_upload
+#' @description connect to postgresql db and upload named data frames into db(s)
+#' 
+#' @param host 
+#' @param dbname 
+#' @param user 
+#' @param password 
+#' @param waitingForUpdate 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+connect_upload <- function(host, dbname, user, password, 
+                           waitingForUpdate){
+  stopifnot(!is.null(waitingForUpdate))
+  con <- dbConnect(PostgreSQL(), host, dbname, user, password)
+  dbListTables(con)
+  
+  lapply(mget(waitingForUpdate), function(x){
+    dbWriteTable(con, name = x, value = get(x), overwrite = TRUE, row.names = FALSE)
+    # sql <- paste0('ALTER TABLE "', x, '" ADD CONSTRAINT "', x, '.N_rate" PRIMARY KEY ("N_rate");')
+    # dbExecute(con, sql)
+    
+  })
+  dbDisconnect(con)
+  
+  
+}
+
 
 
 #' join_wb
