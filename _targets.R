@@ -251,62 +251,27 @@ list(
              wb_correction(WaterBalance_correction,DT_canopy_correction)
              ),
   tar_target(wb, 
-             wb_daily(WaterBalance, DT_profile_simple, DT_summarised)
+             wb_daily(WaterBalance, DT_profile_simple, DT_summarised, 
+                      maxdepth = 1)
              ),
   tar_target(update_WaterBalance.1,
              join_wb(wb, WaterBalance, profile_simpleSWD.irr1)
              ),
   tar_target(update_WaterBalance.2,
-             join_wb(wb, WaterBalance, profile_simpleSWD.irr1)
-             )
- 
-# # 60cm --------------------------------------------------------------------
-# 
-# PAWC_Profile_60cm <- PAWC_depth(DT_summarised, maxdepth = 3)
-# SWD_Profile_Wt0_60cm <- SWD_depth(DT_summarised, 
-#                                   maxdepth = 3)[,.SD[1], by = key
-#                                   ][order(get(key))]
-# Deficit_60cm <- merge.data.table(SWD_Profile_Wt0_60cm[,.(Irrigation, N_rate, SWD)],
-#                                  SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
-#                                  by = key, suffixes = c("Wt0","Ws0"))
-# AWHC_60cm <- merge.data.table(PAWC_Profile_60cm[,.(Irrigation, N_rate, AWHc)],
-#                               PAWC_top20cm[,.(Irrigation, N_rate, AWHc)],
-#                               by = key, suffixes = c("","s"))
-# WB_input_60cm <- merge.data.table(Deficit_60cm, AWHC_60cm, by = key)
-# ## Subset the water balance input data frame
-# cmd <- paste0("WaterBalance[,.(Date, PET, Precipitation =  Precipitation.", rep(c(1,2), each = 4), ")]" )
-# cmd <- paste0("list(", paste(cmd, collapse = ", "),")")
-# 
-# WB_input_60cm[, wbDT := eval(parse(text = cmd))]
-# 
-# wb_list_60cm <- vector("list",length = nrow(WB_input_60cm))
-# for(i in 1:nrow(WB_input)){
-#   wb_list_60cm[[i]] <-  ScotterWaterbalance(WB_input_60cm$wbDT[[i]], 
-#                                             Wt0 = WB_input_60cm$SWDWt0[i], 
-#                                             Ws0 = WB_input_60cm$SWDWs0[i], 
-#                                             AWHC = WB_input_60cm$AWHc[i],
-#                                             AWHCs = WB_input_60cm$AWHcs[i], 
-#                                             reset = FALSE)
-#   
-# }
-# WB_input_60cm[, wb:= wb_list_60cm]
-# wb_60cm <- WB_input_60cm[,  unlist(wb, recursive = FALSE), by = key]
-# 
-# update_WaterBalance.1_60cm <- dcast.data.table(wb_60cm[Irrigation == 1], Date ~ N_rate, 
-#                                                value.var = c("Wt", "Drainage"))
-# update_WaterBalance.1_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.1)
-# ][update_WaterBalance.1_60cm, on = "Date"]
-# 
-# update_WaterBalance.1_60cm <- copy(update_simpleSWD.irr1)[, Crop:= NULL
-# ][update_WaterBalance.1_60cm, on = "Date"]
-# update_WaterBalance.2_60cm <- dcast.data.table(wb_60cm[Irrigation == 2], Date ~ N_rate, 
-#                                                value.var =  c("Wt", "Drainage"))
-# update_WaterBalance.2_60cm <- WaterBalance[, .(Date, PET, Precipitation = Precipitation.2)
-# ][update_WaterBalance.2_60cm, on = "Date"]
-# update_WaterBalance.2_60cm <- copy(update_simpleSWD.irr2)[, Crop:= NULL
-# ][update_WaterBalance.2_60cm, on = "Date"]
-# 
-# # Resetting values  -------------------------------------------------------
+             join_wb(wb, WaterBalance, profile_simpleSWD.irr2)
+             ),
+  # 60cm --------------------------------------------------------------------
+  tar_target(wb_60cm, 
+             wb_daily(WaterBalance, DT_profile_simple, DT_summarised, 
+                      maxdepth = 3)
+             ),
+  tar_target(update_WaterBalance.1_60cm,
+             join_wb(wb_60cm, WaterBalance, update_simpleSWD.irr1)
+  ),
+  tar_target(update_WaterBalance.2_60cm,
+             join_wb(wb_60cm, WaterBalance, update_simpleSWD.irr2)
+  )
+  # Resetting values  -------------------------------------------------------
 # 
 # ## The actual measurements for reset the water balance model 
 # reset_df <- SWD_depth(DT_summarised, maxdepth = 3)

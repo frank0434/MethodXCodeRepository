@@ -64,7 +64,7 @@ wb_simple <- function(DT_summarised){
 #' @examples
 wb_daily <- function(WaterBalance,
                      DT_profile_simple, 
-                     DT_summarised){
+                     DT_summarised,maxdepth = 1){
   ## Define inputs 
   
   # 2. value for Wt0 (water deficit at start time, also in mm)
@@ -81,17 +81,17 @@ wb_daily <- function(WaterBalance,
   ## Prepare the critical input values 
   key <- c("Irrigation", "N_rate")
   PAWC_Profile <- PAWC_depth(DT_summarised)
-  PAWC_top20cm <- PAWC_depth(DT_summarised, maxdepth = 1)
+  PAWC_topXcm <- PAWC_depth(DT_summarised, maxdepth)
   SWD_Profile_Wt0 <- SWD_depth(DT_summarised)[, .SD[1], by = key
-                                               ][order(get(key))]
-  SWD_Profile_Ws0 <- SWD_depth(DT_summarised, maxdepth = 1)[, .SD[1], 
+                                               ][order(mget(key))]
+  SWD_Profile_Ws0 <- SWD_depth(DT_summarised, maxdepth )[, .SD[1], 
                                                              by = key
-                                                             ][order(get(key))]
+                                                             ][order(mget(x = key))]
   Deficit <- merge.data.table(SWD_Profile_Wt0[,.(Irrigation, N_rate, SWD)],
                               SWD_Profile_Ws0[,.(Irrigation, N_rate, SWD)],
                               by = key, suffixes = c("Wt0","Ws0"))
   AWHC <- merge.data.table(PAWC_Profile[,.(Irrigation, N_rate, AWHc)],
-                           PAWC_top20cm[,.(Irrigation, N_rate, AWHc)],
+                           PAWC_topXcm[,.(Irrigation, N_rate, AWHc)],
                            by = key, suffixes = c("","s"))
   WB_input <- merge.data.table(Deficit, AWHC, by = key)
   ## Subset the water balance input data frame
