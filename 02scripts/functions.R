@@ -15,19 +15,21 @@
 #' @export
 #'
 #' @examples
-connect_upload <- function(host, dbname, user, password, 
-                           waitingForUpdate){
+connect_upload <- function(host = "database.powerplant.pfr.co.nz",
+                           dbname = Sys.getenv("USERNAME"), 
+                           user = Sys.getenv("USERNAME"),
+                           password = Sys.getenv("PASSWORD"), 
+                           waitingForUpdate, tab_name){
   stopifnot(!is.null(waitingForUpdate))
-  con <- dbConnect(PostgreSQL(), host, dbname, user, password)
-  dbListTables(con)
+  con <- DBI::dbConnect(RPostgreSQL::PostgreSQL(), 
+                        host = host, dbname = dbname, 
+                        user = user, password = password)
+  DBI::dbListTables(con)
   
-  lapply(mget(waitingForUpdate), function(x){
-    dbWriteTable(con, name = x, value = get(x), overwrite = TRUE, row.names = FALSE)
-    # sql <- paste0('ALTER TABLE "', x, '" ADD CONSTRAINT "', x, '.N_rate" PRIMARY KEY ("N_rate");')
-    # dbExecute(con, sql)
-    
-  })
-  dbDisconnect(con)
+  DBI::dbWriteTable(con, name = tab_name, value = waitingForUpdate, 
+                    overwrite = TRUE, row.names = FALSE)
+
+  DBI::dbDisconnect(con)
   
   
 }
