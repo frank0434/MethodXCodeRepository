@@ -1,5 +1,46 @@
 
 
+
+
+# 14 ------------
+
+#' retrieve_met
+#' @description retrieve rain and PET data from NIWA (New Zealand) station. 
+#' 
+#' @param agent_number integer. default is Lincoln, New Zealand
+#' @param start date object. must be yyyy-mm-dd
+#' @param username character. username for downloading data from cliflo
+#' @param password character. password for downloading data from cliflo
+#'
+#' @return
+#' @export
+#' 
+#' @import clifro
+#'
+#' @examples
+retrieve_met <- function(agent_number = 17603L, start,
+                         username = NULL, password = NULL){
+  if(is.null(username)){
+    me <- cf_user(Sys.getenv("clifro_usr"),
+                  Sys.getenv("clifro_pass"))
+  } else{
+    me <-cf_user(username, password)
+  }
+  my.dts <- cf_datatype(select_1 =     c(9, 3),
+                        select_2 =     c(1, 1),
+                        check_box = list(4, 1),
+                        combo_box =    c(NA, NA))
+  my.station <- cf_station(agent_number)
+  cf.datalist <- cf_query(user = me,
+                          datatype = my.dts,
+                          station = my.station,
+                          start_date = paste(start, "00"),
+                          end_date = Sys.Date())
+  return(cf.datalist)
+}
+
+
+# 13 ------------
 # connect to database -----------------------------------------------------
 
 #' connect_upload
@@ -35,7 +76,7 @@ connect_upload <- function(host = "database.powerplant.pfr.co.nz",
 }
 
 
-
+# 12 ------------
 #' join_wb
 #'
 #' @param wb 
@@ -58,7 +99,7 @@ join_wb <- function(wb, WaterBalance, profile_simpleSWD.irr){
   
 }
 
-
+# 11 ------------
 #' wb_simple
 #'  @description Simple SWD uses a user-defined PAWC (usually the maximum value
 #over a series measurement) # SWD is calculated by subtracting the PAWC by the
@@ -85,7 +126,7 @@ wb_simple <- function(DT_summarised){
 
 
 
-
+# 10 ------------
 #' Title
 #'
 #' @param WaterBalance 
@@ -152,6 +193,7 @@ wb_daily <- function(WaterBalance,
   return(wb)
 }
 
+# 9 ------------
 #' wb_correction
 #' @description merge wb with canopy and pet correction
 #' @param WaterBalance_correction 
@@ -172,6 +214,7 @@ wb_correction <- function(WaterBalance_correction, DT_canopy_correction){
 
 }
 
+# 8 ------------
 #' canopy_cover
 #' @description manually fill the canopy coverage.
 #' @param DT 
@@ -198,6 +241,7 @@ canopy_cover <- function(DT){
   return(DT)
   }
 
+# 7 ------------
 
 #' order_layer
 #' @description hard code re-order. becareful about the layer number and name. 
@@ -217,7 +261,7 @@ order_layer <- function(DT_summarised, layers_no, layers_name){
 }
 
 
-
+# 6 ------------
 #' download_excel
 #' @description This function downloads excel file from iplant to a temp file. 
 #'
@@ -242,7 +286,7 @@ download_excel <- function(url,
   
 }
 
-
+# 5 ------------
 #' SWD_depth
 #' @description Calculate the SWD in different profile. 
 #'
@@ -282,6 +326,7 @@ SWD_depth <- function(DT, colname = "variable", maxdepth = 8, PAWC = NULL){
   return(DT_profile)
 }
 
+# 4 ------------
 #' PAWC_depth
 #'
 #' @param DT 
@@ -309,7 +354,7 @@ PAWC_depth <- function(DT, colname = "variable", maxdepth = 8){
   return(DT_profile[order(Irrigation, N_rate)])
 }
 
-
+# 3 ------------
 #' change_tz
 #' @description change the excel file time zone to NZ so align with the climate 
 #' @param DT 
@@ -326,7 +371,7 @@ change_tz <- function(DT, timezone = "NZ"){
   return(DT)
 }
 
-
+# 2 ------------
 ### Based on equation from Scotter et. al . (1979) and the modified equations from Scotter and Horne (2016) the function calculates the modelled values for:
 # - soil water deficit (W(t)) for the total planting zone (in mm)
 # - soil water deficits for the top soil Ws(t) (in mm)
@@ -344,11 +389,6 @@ change_tz <- function(DT, timezone = "NZ"){
 # 3. value for Ws0 (water deficit top soil at start time, also in mm)
 # 4. value for AWHC (available water holding capacity in mm)
 # 5. value for AWHCs (available water holding capacity for the top soil in mm)
-
-
-
-
-
 ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs, 
                                 reset = TRUE, reset_dt = NULL){
   cols <- colnames(weatherdata)
@@ -418,7 +458,7 @@ ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs,
 }
 
 
-
+# 1 -------------
 #' lagfun
 #' @description use with lappy to calculate the lag 1 difference
 #' @param x 
