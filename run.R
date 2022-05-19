@@ -1,3 +1,1 @@
-source("C:/Data/SVS/02scripts/sourceData.R")
-source("C:/Data/SVS/02scripts/transderData.R")
-source("C:/Data/SVS/02scripts/updateDB.R")
+source("C:/Data/SVS/_targets.R")
