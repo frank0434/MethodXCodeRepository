@@ -1,19 +1,34 @@
 library(targets)
 source(here::here("02scripts/functions.R"))
-source(here::here("02scripts/ProcessCanopyCover.R"))
+# source(here::here("02scripts/ProcessCanopyCover.R"))
 targets::tar_option_set(packages = c("data.table","httr","readxl","magrittr",
                                      "DBI","RPostgreSQL","clifro","here"))
 list(
+# constant & urls & etc ---------------------------------------------------
+  tar_target(base_url,
+             "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/"
+             ),
+  tar_target(crops,
+             c("Onion", "Onions","Wheat", "Broccoli","Potato")
+             ),
+  tar_target(tech,
+             c("Sunscan", "Greenseeker")
+             ),
   tar_target(iplant_url, 
              "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/SVS_PotatoOnion_SoilWater.xlsx"
              ),
   tar_target(tempfile, 
              download_excel(iplant_url)
              ),
-  tar_target(df,
+  tar_target(Raw,
              read_excel(tempfile, sheet = "SoilWaterMainData", skip = 9,.name_repair = "universal") %>% 
                as.data.table() %>% 
                change_tz(.)
+             ),
+  tar_target(SoilMoisture,
+             Raw[!is.na(Crop) & !is.na(Date), 
+                 grep("^\\w", colnames(Raw), value = TRUE),
+                 with = FALSE]
              ),
   tar_target(df_irrigation, 
              read_excel(tempfile, sheet = "IrrigationDiary", skip = 4,.name_repair = "universal") %>% 
@@ -25,10 +40,12 @@ list(
                as.data.table() %>% 
                change_tz(.)
              ),
+  tar_target(full_canopy, 
+             retrieve_canopy(base_url, crops, tech)
+             ),
 # retrieve climate data ---------------------------------------------------
- 
   tar_target(cf.datalist, 
-             retrieve_met(start = unique(df$Date)[1])
+             retrieve_met(start = unique(SoilMoisture$Date)[1])
              ),
 # clean up the cliflo data ------------------------------------------------
   tar_target(PET, 
@@ -43,18 +60,9 @@ list(
              ),
 
 # calculation  ------------------------------------------------------------
-  tar_target(cols,
-             grep("^\\w", colnames(df), value = TRUE)
-             ),
-  tar_target(DT, 
-             df[!is.na(Crop) & !is.na(Date), cols, with = FALSE]
-             ),
   tar_target(value_var,
-             grep("VWC.+", colnames(DT), value = TRUE)
+             grep("VWC.+", colnames(SoilMoisture), value = TRUE)
              ),
-  # Cautious!!!!! SW is in percentage
-  tar_target(thickness, # constant
-             2),
   tar_target(id_var,
              c("Crop", "Date", "Field_Plot_No", "Plot_No","Irrigation...8",
                "N_rate")),
@@ -67,33 +75,28 @@ list(
                              )[, Comments:=NULL][value == 1]
              ),
   ## Get the raw measurements into long format
-  tar_target(DT_long,
-             melt(DT, id.vars = id_var, measure.vars = value_var,
+  tar_target(SoilMoisture_long,
+             melt(SoilMoisture, id.vars = id_var, measure.vars = value_var,
                   variable.factor = FALSE)[, value := as.numeric(value)]),
   ## merge the raw with manual correction table
-  tar_target(DTwithmeta_withNA,
-             merge.data.table(DT_long, NAcells,
+  tar_target(SoilMoisturewithmeta_withNA,
+             merge.data.table(SoilMoisture_long, NAcells,
                               by.x = c("Date", "Field_Plot_No", "variable"),
                               by.y = c("Date", "Plot", "variable"),
                               all.x = TRUE, suffixes = c("", ".y"))
              ),
   # value is doubled to get the mm unit, `thickness` holds the converter.
-  tar_target(DT_summarised_no_order,
-             DTwithmeta_withNA[is.na(value.y)
+  # Cautious!!!!! SW is in percentage
+  tar_target(SoilMoisture_summarised_no_order,
+             SoilMoisturewithmeta_withNA[is.na(value.y)
                                ][, value.y := NULL
-                                 ][, .(SW = mean(as.numeric(value)*thickness, 
+                                 ][, .(SW = mean(as.numeric(value)*2, 
                                                  na.rm = TRUE)),
                                    by = .(Crop, Date, variable,
                                           Irrigation...8, N_rate)]
              ),
-  # Transfer layer information to integer layers
-  tar_target(layers_name,
-             unique(DT_summarised_no_order$variable)),
-  ## Hard code layer
-  tar_target(layers_no, c(1, 6, 7, 8, 2, 3, 4,5)),
-  tar_target(DT_summarised,
-             order_layer(DT_summarised = DT_summarised_no_order,
-                        layers_no = layers_no, layers_name = layers_name)
+  tar_target(SoilMoisture_summarised,
+             order_layer(DT_summarised = SoilMoisture_summarised_no_order)
              ),
   ## Pattern search was way to complex, manually pull out the critical dates
   tar_target(dates_of_interests,
@@ -142,29 +145,29 @@ list(
              ),
 
   ### Join the full date with the growth stage
-  tar_target(DT_canopy,
+  tar_target(SoilMoisture_canopy,
              merge.data.table(full_period, growth_stage[,.(Date, Events, mean, Crop)],
                               by = "Date", all = TRUE)
              ),
   ### Update columns that have NAs 
-  tar_target(DT_canopy_correction,
-             canopy_cover(DT_canopy)
+  tar_target(SoilMoisture_canopy_correction,
+             canopy_cover(SoilMoisture_canopy)
              ),
   
   # Simple SWD --------------------------------------------------------------
-  tar_target(DT_profile_simple_60cm,
-             wb_simple(DT_summarised)
+  tar_target(SoilMoisture_profile_simple_60cm,
+             wb_simple(SoilMoisture_summarised)
              ),
   tar_target(update_simpleSWD.irr1,
-             dcast.data.table(DT_profile_simple_60cm[Irrigation == 1],
+             dcast.data.table(SoilMoisture_profile_simple_60cm[Irrigation == 1],
                               Crop + Date  + profile~ N_rate, value.var = "SWD")
              ),
   tar_target(update_simpleSWD.irr2,
-             dcast.data.table(DT_profile_simple_60cm[Irrigation == 2],
+             dcast.data.table(SoilMoisture_profile_simple_60cm[Irrigation == 2],
                               Crop + Date  + profile~ N_rate, value.var = "SWD")
              ),
-  tar_target(DT_profile_simple,
-             SWD_depth(DT_summarised)
+  tar_target(SoilMoisture_profile_simple,
+             SWD_depth(SoilMoisture_summarised)
              ),
 
   # WATER BALANCE -----------------------------------------------------------
@@ -201,19 +204,19 @@ list(
              ),
   ## Join the growth stage information 
   tar_target(WaterBalance,
-             wb_correction(WaterBalance_correction,DT_canopy_correction)
+             wb_correction(WaterBalance_correction,SoilMoisture_canopy_correction)
              ),
   # Resetting values  -------------------------------------------------------
   ## The actual measurements for reset the water balance model    
-  tar_target(reset_df,
-             SWD_depth(DT_summarised, 
+  tar_target(reset_SoilMoisture,
+             SWD_depth(SoilMoisture_summarised, 
                        maxdepth = 3)[, list(realSWD = list(.SD)), 
                                      by = .(Irrigation, N_rate)]
              ),
   # PET correction with reset for top 60cm--------------------------------------
   tar_target(wb_60cm_reset_PETcor,
-             wb_daily(WaterBalance, DT_profile_simple, DT_summarised, 
-                      maxdepth = 3, reset = reset_df)
+             wb_daily(WaterBalance, SoilMoisture_profile_simple, SoilMoisture_summarised, 
+                      maxdepth = 3, reset = reset_SoilMoisture)
              ),
   tar_target(update_WaterBalance.1_60cm_reset_PETcor,
              join_wb(wb_60cm_reset_PETcor, WaterBalance, update_simpleSWD.irr1)
