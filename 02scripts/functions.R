@@ -192,7 +192,7 @@ wb_simple <- function(DT_summarised){
 
 
 # 10 ------------
-#' Title
+#' wb_daily
 #'
 #' @param WaterBalance 
 #' @param DT_summarised 
@@ -309,7 +309,7 @@ canopy_cover <- function(DT){
 # 7 ------------
 
 #' order_layer
-#' @description hard code re-order. becareful about the layer number and name. 
+#' @description hard code re-order. careful about the layer number and name. 
 #' 
 #' @param DT_summarised 
 #' @param layers_no 
