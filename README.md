@@ -20,27 +20,27 @@ package "Import Data" {
   object "metadata" as meta
 } 
 
-
-package "Transformation" {
-  object "Water Balance" as ob5
-  object "Daily Canopy index" as ob8
+package "Transformation"{
+  object "Daily Canopy index \nand PET correction" as ob5
+  object "Rain + Irrigation + Soil Moisture Content" as ob7
 
 }
 
 package "Daily Water Balance" {
-  object "Soil moisture depletion" as ob9
+  object "Soil moisture depletion" as ob8
 
 }  
 
-object cache
-ob1 --> cache : API
-ob2 --> cache : Excel adaptor
-ob3 --> cache : Excel adaptor
-ob4 --> cache : Excel adaptor
-meta -> cache : Excel adaptor
-cache --> ob5 : Joinning and Aggregation \nfunctions
-cache --> ob8 
-ob5 --> ob9
-ob8 --> ob9
+
+ob1 --> ob5
+ob4 --> ob5: Excel adaptor
+meta -> ob5: Excel adaptor
+
+ob1 --> ob7: API
+ob2 --> ob7: Excel adaptor
+ob3 --> ob7: Excel adaptor
+
+ob5 --> ob8
+ob7 --> ob8
 @enduml
 ```
