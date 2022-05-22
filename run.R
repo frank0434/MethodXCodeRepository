@@ -1,1 +1,2 @@
-source("C:/Data/SVS/_targets.R")
+setwd("C:/Data/SVS/")
+targets::tar_make()
