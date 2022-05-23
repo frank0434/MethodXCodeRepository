@@ -1,8 +1,106 @@
 
+# 1 ------------
+#' download_excel
+#' @description This function downloads excel file from iplant to a temp file. 
+#'
+#' @param url a string of url. The url needs to be like:
+#' "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/SVS_PotatoOnion_SoilWater.xlsx"
+#'
+#' @details Iplant authenticate type is `ntlm`
+#' 
+#' @return
+#' @export
+#' @import httr
+#'
+#' @examples
+#' 
+download_excel <- function(url, 
+                           username = "cflfcl", 
+                           pass =  Sys.getenv("PASSWORD")){
+  httr::GET(url, authenticate(user = username, password = pass,
+                              type = "ntlm"), 
+            write_disk(tf <- tempfile(fileext = ".xlsx"), overwrite = TRUE))
+  return(tf)
+  
+}
 
 
 
-# 15 ------------
+# 2 ------------
+# connect to database 
+
+#' connect_upload
+#' @description connect to postgresql db and upload named data frames into db(s)
+#' 
+#' @param host 
+#' @param dbname 
+#' @param user 
+#' @param password 
+#' @param waitingForUpdate 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+connect_upload <- function(host = "database.powerplant.pfr.co.nz",
+                           dbname = Sys.getenv("USERNAME"), 
+                           user = Sys.getenv("USERNAME"),
+                           password = Sys.getenv("PASSWORD"), 
+                           waitingForUpdate, tab_name){
+  stopifnot(!is.null(waitingForUpdate))
+  con <- DBI::dbConnect(RPostgreSQL::PostgreSQL(), 
+                        host = host, dbname = dbname, 
+                        user = user, password = password)
+  DBI::dbListTables(con)
+  
+  DBI::dbWriteTable(con, name = tab_name, value = waitingForUpdate, 
+                    overwrite = TRUE, row.names = FALSE)
+  
+  DBI::dbDisconnect(con)
+  
+  
+}
+
+
+# 3 ------------
+
+#' retrieve_met
+#' @description retrieve rain and PET data from NIWA (New Zealand) station. 
+#' 
+#' @param agent_number integer. default is Lincoln, New Zealand
+#' @param start date object. must be yyyy-mm-dd
+#' @param username character. username for downloading data from cliflo
+#' @param password character. password for downloading data from cliflo
+#'
+#' @return
+#' @export
+#' 
+#' @import clifro
+#'
+#' @examples
+retrieve_met <- function(agent_number = 17603L, start,
+                         username = NULL, password = NULL){
+  if(is.null(username)){
+    me <- cf_user(Sys.getenv("clifro_usr"),
+                  Sys.getenv("clifro_pass"))
+  } else{
+    me <-cf_user(username, password)
+  }
+  my.dts <- cf_datatype(select_1 =     c(9, 3),
+                        select_2 =     c(1, 1),
+                        check_box = list(4, 1),
+                        combo_box =    c(NA, NA))
+  my.station <- cf_station(agent_number)
+  cf.datalist <- cf_query(user = me,
+                          datatype = my.dts,
+                          station = my.station,
+                          start_date = paste(start, "00"),
+                          end_date = Sys.Date())
+  return(cf.datalist)
+}
+
+
+# 4 ------------
 
 ## Too much effort to build a webscraper assessmble file names to extrat
 # base_url <- "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/"
@@ -42,10 +140,10 @@ retrieve_canopy <- function(base_url, crops, tech){
   }, simplify = TRUE)
   filepath[, filepaths:= l]
   data_gs <- filepath[!is.na(filepaths) & (Var3 == "Greenseeker")
-                      ][, data:=lapply(filepaths, function(x){
-                        dt <- as.data.table(read_excel(path = x, 
-                                                       skip = 5, sheet = "NDVI raw data"))
-                        })]
+  ][, data:=lapply(filepaths, function(x){
+    dt <- as.data.table(read_excel(path = x, 
+                                   skip = 5, sheet = "NDVI raw data"))
+  })]
   ## Aggregate the raw to mean
   data_gs[, summary := lapply(data, function(x){
     # SELECT THE RIGHT COLS
@@ -67,81 +165,34 @@ retrieve_canopy <- function(base_url, crops, tech){
 }
 
 
-# 14 ------------
-
-#' retrieve_met
-#' @description retrieve rain and PET data from NIWA (New Zealand) station. 
-#' 
-#' @param agent_number integer. default is Lincoln, New Zealand
-#' @param start date object. must be yyyy-mm-dd
-#' @param username character. username for downloading data from cliflo
-#' @param password character. password for downloading data from cliflo
-#'
-#' @return
-#' @export
-#' 
-#' @import clifro
-#'
-#' @examples
-retrieve_met <- function(agent_number = 17603L, start,
-                         username = NULL, password = NULL){
-  if(is.null(username)){
-    me <- cf_user(Sys.getenv("clifro_usr"),
-                  Sys.getenv("clifro_pass"))
-  } else{
-    me <-cf_user(username, password)
-  }
-  my.dts <- cf_datatype(select_1 =     c(9, 3),
-                        select_2 =     c(1, 1),
-                        check_box = list(4, 1),
-                        combo_box =    c(NA, NA))
-  my.station <- cf_station(agent_number)
-  cf.datalist <- cf_query(user = me,
-                          datatype = my.dts,
-                          station = my.station,
-                          start_date = paste(start, "00"),
-                          end_date = Sys.Date())
-  return(cf.datalist)
-}
-
-
-# 13 ------------
-# connect to database -----------------------------------------------------
-
-#' connect_upload
-#' @description connect to postgresql db and upload named data frames into db(s)
-#' 
-#' @param host 
-#' @param dbname 
-#' @param user 
-#' @param password 
-#' @param waitingForUpdate 
+# 5 ------------
+#' canopy_cover
+#' @description manually fill the canopy coverage.
+#' @param DT 
 #'
 #' @return
 #' @export
 #'
 #' @examples
-connect_upload <- function(host = "database.powerplant.pfr.co.nz",
-                           dbname = Sys.getenv("USERNAME"), 
-                           user = Sys.getenv("USERNAME"),
-                           password = Sys.getenv("PASSWORD"), 
-                           waitingForUpdate, tab_name){
-  stopifnot(!is.null(waitingForUpdate))
-  con <- DBI::dbConnect(RPostgreSQL::PostgreSQL(), 
-                        host = host, dbname = dbname, 
-                        user = user, password = password)
-  DBI::dbListTables(con)
+canopy_cover <- function(DT){
   
-  DBI::dbWriteTable(con, name = tab_name, value = waitingForUpdate, 
-                    overwrite = TRUE, row.names = FALSE)
-
-  DBI::dbDisconnect(con)
+  DT <- DT[, ':='(Crop = zoo::na.locf(Crop), # forward fill
+                  Events = zoo::na.locf(Events), # forward fill
+                  PET_correction = fcase(mean %in% c(0, 0.1), 0.15,
+                                         mean > 0.75, 1))]
+  ### Need end value for interpolation in each group
+  loc_last_in_group <- DT[, .I[.N], by = .(Events, Crop)]
+  ### First value in each group will be the end value for the previous group
+  ### Logic not working since the values not aligned - hard code the last values 
+  DT[loc_last_in_group$V1, PET_correction := c(rep(c(0.15,1,1), 3),0.15)] # Fix this 
+  ## update the interpolation 
+  DT[, PET_correction:= zoo::na.approx(PET_correction, Date, na.rm = FALSE), 
+     by = .(Crop, Events)]
   
-  
+  return(DT)
 }
 
-
-# 12 ------------
+# 6 ------------
 #' join_wb
 #'
 #' @param wb 
@@ -164,7 +215,7 @@ join_wb <- function(wb, WaterBalance, profile_simpleSWD.irr){
   
 }
 
-# 11 ------------
+# 7 ------------
 #' wb_simple
 #'  @description Simple SWD uses a user-defined PAWC (usually the maximum value
 #over a series measurement) # SWD is calculated by subtracting the PAWC by the
@@ -191,7 +242,7 @@ wb_simple <- function(DT_summarised){
 
 
 
-# 10 ------------
+# 8 ------------
 #' wb_daily
 #'
 #' @param WaterBalance 
@@ -279,34 +330,8 @@ wb_correction <- function(WaterBalance_correction, DT_canopy_correction){
 
 }
 
-# 8 ------------
-#' canopy_cover
-#' @description manually fill the canopy coverage.
-#' @param DT 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-canopy_cover <- function(DT){
-   
-  DT <- DT[, ':='(Crop = zoo::na.locf(Crop), # forward fill
-                  Events = zoo::na.locf(Events), # forward fill
-                  PET_correction = fcase(mean %in% c(0, 0.1), 0.15,
-                                         mean > 0.75, 1))]
-  ### Need end value for interpolation in each group
-  loc_last_in_group <- DT[, .I[.N], by = .(Events, Crop)]
-  ### First value in each group will be the end value for the previous group
-  ### Logic not working since the values not aligned - hard code the last values 
-  DT[loc_last_in_group$V1, PET_correction := c(rep(c(0.15,1,1), 3),0.15)] # Fix this 
-  ## update the interpolation 
-  DT[, PET_correction:= zoo::na.approx(PET_correction, Date, na.rm = FALSE), 
-     by = .(Crop, Events)]
-  
-  return(DT)
-  }
 
-# 7 ------------
+# 10 ------------
 
 #' order_layer
 #' @description hard code re-order. careful about the layer number and name. 
@@ -330,32 +355,8 @@ order_layer <- function(DT_summarised){
 }
 
 
-# 6 ------------
-#' download_excel
-#' @description This function downloads excel file from iplant to a temp file. 
-#'
-#' @param url a string of url. The url needs to be like:
-#' "https://iplant.plantandfood.co.nz/project/I190710/DataProtocols/SVS_PotatoOnion_SoilWater.xlsx"
-#'
-#' @details Iplant authenticate type is `ntlm`
-#' 
-#' @return
-#' @export
-#' @import httr
-#'
-#' @examples
-#' 
-download_excel <- function(url, 
-                           username = "cflfcl", 
-                           pass =  Sys.getenv("PASSWORD")){
-  httr::GET(url, authenticate(user = username, password = pass,
-                        type = "ntlm"), 
-      write_disk(tf <- tempfile(fileext = ".xlsx"), overwrite = TRUE))
-  return(tf)
-  
-}
 
-# 5 ------------
+# 11 ------------
 #' SWD_depth
 #' @description Calculate the SWD in different profile. 
 #'
@@ -395,7 +396,7 @@ SWD_depth <- function(DT, colname = "variable", maxdepth = 8, PAWC = NULL){
   return(DT_profile)
 }
 
-# 4 ------------
+# 12 ------------
 #' PAWC_depth
 #'
 #' @param DT 
@@ -423,24 +424,9 @@ PAWC_depth <- function(DT, colname = "variable", maxdepth = 8){
   return(DT_profile[order(Irrigation, N_rate)])
 }
 
-# 3 ------------
-#' change_tz
-#' @description change the excel file time zone to NZ so align with the climate 
-#' @param DT 
-#' @param timezone 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-change_tz <- function(DT, timezone = "NZ"){
-  # HARD STOP if conditions not meet
-  stopifnot(is.data.table(DT), "Date"%in% colnames(DT))
-  DT[, Date := as.Date(Date, tz = "NZ")]
-  return(DT)
-}
 
-# 2 ------------
+
+# 13 ------------
 ### Based on equation from Scotter et. al . (1979) and the modified equations from Scotter and Horne (2016) the function calculates the modelled values for:
 # - soil water deficit (W(t)) for the total planting zone (in mm)
 # - soil water deficits for the top soil Ws(t) (in mm)
@@ -526,8 +512,24 @@ ScotterWaterbalance <- function(weatherdata, Wt0, Ws0, AWHC, AWHCs,
   
 }
 
+# 14 ------------
+#' change_tz
+#' @description change the excel file time zone to NZ so align with the climate 
+#' @param DT 
+#' @param timezone 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+change_tz <- function(DT, timezone = "NZ"){
+  # HARD STOP if conditions not meet
+  stopifnot(is.data.table(DT), "Date"%in% colnames(DT))
+  DT[, Date := as.Date(Date, tz = "NZ")]
+  return(DT)
+}
 
-# 1 -------------
+# 15 -------------
 #' lagfun
 #' @description use with lappy to calculate the lag 1 difference
 #' @param x 
