@@ -1,19 +1,33 @@
-# Define a service name 
+# version of the compose file being used.
+# More information: https://docs.docker.com/compose/compose-file/compose-versioning/
 version: '2'
+# service tag to declare what services will be composed. 
 services:
+  # the name of the service
   grafana:
+    # the docker image of the service
     image: grafana/grafana:latest
+    # the name of the container once it's built
     container_name: svs_grafana
+    # the port number for accessing the container service
     ports:
       - "3000:3000"
+    # a restart policy to make sure the container service running 
     restart: unless-stopped
+    # enviornment variables to connect the grafana with a render plugin
+    # so users can directly export panel visualisation as png files 
     environment:
       GF_RENDERING_SERVER_URL: http://renderer:8081/render
       GF_RENDERING_CALLBACK_URL: http://grafana:3000/
       GF_LOG_FILTERS: rendering:debug
+    # create a external volume called data in current directory
+    # so all data can be recorded here and backed up if needed
     volumes:
       - ./data:/var/lib/grafana
+  # the second service name 
   renderer:
+    # the docker image of the service 
     image: grafana/grafana-image-renderer:latest
+    # the port number for accessing the container service 
     ports:
     - 8081
